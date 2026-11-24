@@ -1,11 +1,15 @@
-baseURL = "https://example.com/"
-languageCode = "zh-cn"
+baseURL = "https://54786569358.github.io/"
+locale = "zh-cn"
 defaultContentLanguage = "zh-cn"
 title = "燕江的博客"
 theme = "PaperMod"
 enableRobotsTXT = true
 hasCJKLanguage = true
 enableEmoji = true
+enableGitInfo = true
+
+[frontmatter]
+  lastmod = [":git", "lastmod", ":fileModTime", ":default"]
 
 [pagination]
   pagerSize = 10
@@ -36,6 +40,7 @@ enableEmoji = true
   showtoc = true
   tocopen = false
   mainSections = ["posts"]
+  ShowFullTextinRSS = true
 
   [params.assets]
     disableHLJS = true
@@ -51,7 +56,7 @@ enableEmoji = true
 
   [[params.socialIcons]]
     name = "github"
-    url = "https://github.com/USERNAME"
+    url = "https://github.com/54786569358"
 
   [params.profileMode]
     enabled = false
