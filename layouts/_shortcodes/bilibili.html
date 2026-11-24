@@ -1,0 +1,13 @@
+{{- $id := .Get 0 -}}
+{{- $p := .Get 1 | default "1" -}}
+{{- $t := .Get "title" -}}
+<div style="position:relative;width:100%;padding-top:56.25%;margin:1.4rem 0;border-radius:8px;overflow:hidden;background:#000">
+  <iframe src="https://player.bilibili.com/player.html?bvid={{ $id }}&page={{ $p }}&high_quality=1&danmaku=0&autoplay=0"
+          style="position:absolute;inset:0;width:100%;height:100%;border:0"
+          allowfullscreen="allowfullscreen"
+          scrolling="no"
+          frameborder="0"></iframe>
+</div>
+{{- with $t }}
+<p style="text-align:center;font-size:.85em;opacity:.7;margin-top:-1rem">{{ . }}</p>
+{{- end }}

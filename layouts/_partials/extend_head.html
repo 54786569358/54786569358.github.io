@@ -1,0 +1,83 @@
+{{- /* ---------- custom head additions ---------- */ -}}
+<link rel="icon" href="{{ "favicon.ico" | absURL }}" sizes="any">
+<link rel="manifest" href="{{ "manifest.json" | absURL }}">
+<link rel="apple-touch-icon" href="{{ "apple-touch-icon.png" | absURL }}">
+<meta name="theme-color" content="#1f2430">
+<meta name="format-detection" content="telephone=no">
+{{- $ogimg := site.Params.ogImage | default "og-default.png" }}
+{{- with .Params.image }}{{ $ogimg = . }}{{ end }}
+<meta property="og:image" content="{{ $ogimg | absURL }}">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:image" content="{{ $ogimg | absURL }}">
+<meta name="twitter:card" content="summary_large_image">
+
+<style>
+/* ---------- callouts ---------- */
+.callout { border-radius: 8px; padding: .85rem 1rem .85rem 1.1rem; margin: 1.2rem 0;
+           border-left: 4px solid; background: rgba(127,127,127,.08); }
+.callout-title { font-weight: 600; margin-bottom: .35rem; display: flex; align-items: center; gap: .45rem; }
+.callout p:last-child { margin-bottom: 0; }
+.callout-note    { border-color: #4b8bf5; }
+.callout-note    .callout-title { color: #4b8bf5; }
+.callout-tip     { border-color: #2fb344; }
+.callout-tip     .callout-title { color: #2fb344; }
+.callout-warning { border-color: #e8a33d; }
+.callout-warning .callout-title { color: #e8a33d; }
+.callout-danger  { border-color: #e5484d; }
+.callout-danger  .callout-title { color: #e5484d; }
+
+/* ---------- collapse ---------- */
+details.collapse { border: 1px solid rgba(127,127,127,.28); border-radius: 8px; padding: .6rem .9rem; margin: 1.1rem 0; }
+details.collapse > summary { cursor: pointer; font-weight: 600; outline: none; }
+details.collapse[open] > summary { margin-bottom: .6rem; }
+
+/* ---------- keyboard ---------- */
+kbd { background: rgba(127,127,127,.18); border: 1px solid rgba(127,127,127,.35);
+      border-radius: 4px; padding: .1rem .38rem; font-size: .85em; font-family: ui-monospace, monospace; }
+
+/* ---------- friend links ---------- */
+.friends { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; margin: 1.6rem 0; }
+.friend { display: flex; gap: 12px; align-items: center; padding: 12px 14px; border-radius: 10px;
+          border: 1px solid rgba(127,127,127,.22); text-decoration: none !important;
+          transition: transform .15s ease, border-color .15s ease; }
+.friend:hover { transform: translateY(-2px); border-color: #4b8bf5; }
+.friend img, .friend .avatar { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; flex: 0 0 42px;
+          background: linear-gradient(135deg,#4b8bf5,#8b5cf6); display: flex; align-items: center;
+          justify-content: center; color: #fff; font-weight: 700; }
+.friend-name { font-weight: 600; line-height: 1.25; }
+.friend-desc { font-size: .82em; opacity: .72; line-height: 1.3; margin-top: 2px; }
+
+/* ---------- gallery ---------- */
+.gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; margin: 1.6rem 0; }
+.gallery a { display: block; border-radius: 8px; overflow: hidden; line-height: 0; }
+.gallery img { width: 100%; height: 190px; object-fit: cover; transition: transform .25s ease; }
+.gallery a:hover img { transform: scale(1.04); }
+
+/* ---------- moments timeline ---------- */
+.moments { margin: 1.6rem 0; border-left: 2px solid rgba(127,127,127,.25); padding-left: 1.2rem; }
+.moment { margin-bottom: 1.6rem; position: relative; }
+.moment::before { content: ""; position: absolute; left: -1.53rem; top: .45rem; width: 9px; height: 9px;
+                  border-radius: 50%; background: #4b8bf5; }
+.moment-date { font-size: .8em; opacity: .6; margin-bottom: .2rem; }
+
+/* ---------- random post link ---------- */
+.random-post { cursor: pointer; }
+
+/* ---------- footer stat line ---------- */
+.statline { text-align: center; font-size: .82rem; opacity: .85; margin: .9rem 0 2.4rem;
+            display: flex; flex-wrap: wrap; gap: .45rem; align-items: center; justify-content: center; }
+.statline a { text-decoration: none; opacity: .85; }
+.statline a:hover { opacity: 1; text-decoration: underline; }
+.statline .random-post { display: inline-flex; align-items: center; gap: .3rem; }
+.statline-sep { opacity: .35; }
+
+/* ---------- pwa standalone tweak ---------- */
+@media (display-mode: standalone) { .top-link { display: none; } }
+</style>
+
+{{- if or .Params.math site.Params.math }}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" crossorigin="anonymous">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" crossorigin="anonymous"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>
+{{- end }}

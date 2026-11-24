@@ -34,13 +34,22 @@ enableGitInfo = true
   UseHugoToc = true
   disableSpecial1stPost = true
   disableScrollToTop = false
-  comments = false
+  comments = true
   hidemeta = false
   hideSummary = false
   showtoc = true
   tocopen = false
   mainSections = ["posts"]
   ShowFullTextinRSS = true
+  math = false
+  busuanzi = true
+
+  [params.giscus]
+    repo = "54786569358/54786569358.github.io"
+    repoId = "R_kgDOV5n4Iw"
+    category = "Announcements"
+    categoryId = "DIC_kwDOV5n4I84DL18E"
+    theme = "preferred_color_scheme"
 
   [params.assets]
     disableHLJS = true
@@ -57,6 +66,10 @@ enableGitInfo = true
   [[params.socialIcons]]
     name = "github"
     url = "https://github.com/54786569358"
+
+  [[params.socialIcons]]
+    name = "rss"
+    url = "index.xml"
 
   [params.profileMode]
     enabled = false
@@ -77,15 +90,30 @@ enableGitInfo = true
     url = "/archives/"
     weight = 20
   [[menu.main]]
+    identifier = "moments"
+    name = "微语"
+    url = "/moments/"
+    weight = 25
+  [[menu.main]]
+    identifier = "gallery"
+    name = "相册"
+    url = "/gallery/"
+    weight = 30
+  [[menu.main]]
+    identifier = "links"
+    name = "友链"
+    url = "/links/"
+    weight = 35
+  [[menu.main]]
     identifier = "tags"
     name = "标签"
     url = "/tags/"
-    weight = 30
+    weight = 40
   [[menu.main]]
     identifier = "search"
     name = "搜索"
     url = "/search/"
-    weight = 40
+    weight = 45
   [[menu.main]]
     identifier = "about"
     name = "关于"

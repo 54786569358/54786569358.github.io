@@ -1,0 +1,18 @@
+{{- /* Usage inside a leaf bundle (content/gallery/index.md):
+       {{< gallery >}}  — renders every image resource of the page
+   Optional: {{< gallery match="*.jpg" >}}                                     */ -}}
+{{- $match := .Get "match" | default "*" -}}
+{{- $imgs := .Page.Resources.Match $match -}}
+{{- $imgs = where $imgs "MediaType.MainType" "image" -}}
+<div class="gallery">
+  {{- range $imgs }}
+    {{- $thumb := . -}}
+    {{- if eq .MediaType.SubType "jpeg" }}{{ $thumb = .Resize "600x q80" }}{{ else if eq .MediaType.SubType "png" }}{{ $thumb = .Resize "600x q80" }}{{ end -}}
+    <a href="{{ .RelPermalink }}" target="_blank" rel="noopener">
+      <img src="{{ $thumb.RelPermalink }}" alt="{{ .Title }}" loading="lazy">
+    </a>
+  {{- end }}
+</div>
+{{- if not $imgs }}
+<p style="opacity:.6">把图片放进 <code>content/gallery/</code> 目录（和 index.md 同级），这里就会自动出现图集。</p>
+{{- end }}

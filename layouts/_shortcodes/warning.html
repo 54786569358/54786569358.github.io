@@ -1,0 +1,5 @@
+{{- $t := .Get "title" -}}
+<div class="callout callout-warning">
+  <div class="callout-title"><span>⚠️</span><span>{{ if $t }}{{ $t }}{{ else }}注意{{ end }}</span></div>
+  <div class="callout-body">{{ .Inner | markdownify }}</div>
+</div>

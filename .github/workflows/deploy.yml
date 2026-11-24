@@ -4,11 +4,14 @@ on:
   push:
     branches: ["main"]
   workflow_dispatch:
+  issues:
+    types: [opened, edited, labeled, reopened]
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
+  issues: write
 
 concurrency:
   group: "pages"
@@ -24,17 +27,80 @@ jobs:
     env:
       HUGO_VERSION: 0.170.1
     steps:
-      - name: Install Hugo CLI
-        run: |
-          wget -O "${{ runner.temp }}/hugo.deb" \
-            "https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/hugo_extended_${HUGO_VERSION}_linux-amd64.deb"
-          sudo dpkg -i "${{ runner.temp }}/hugo.deb"
-
       - name: Checkout
         uses: actions/checkout@v4
         with:
           submodules: recursive
           fetch-depth: 0
+
+      # ---------- Issue 变成文章 ----------
+      # 在标题里带上 post 标签（或给 issue 打 post 标签）即可发布。
+      - name: Convert issue to post
+        id: conv
+        if: >
+          github.event_name == 'issues' &&
+          contains(github.event.issue.labels.*.name, 'post') &&
+          github.event.issue.user.login == github.repository_owner &&
+          (github.event.action == 'opened' || github.event.action == 'edited' || github.event.action == 'labeled' || github.event.action == 'reopened')
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const issue = context.payload.issue;
+            const num = issue.number;
+            const dir = 'content/posts';
+            fs.mkdirSync(dir, { recursive: true });
+            const file = `${dir}/issue-${num}.md`;
+
+            const tags = (issue.labels || [])
+              .map(l => (typeof l === 'string' ? l : l.name))
+              .filter(n => n && n.toLowerCase() !== 'post');
+
+            const yq = (s) => '"' + String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"';
+            const body = (issue.body || '').replace(/\r\n/g, '\n');
+
+            const fm = [
+              '---',
+              `title: ${yq(issue.title)}`,
+              `date: ${new Date(issue.created_at).toISOString()}`,
+              `lastmod: ${new Date(issue.updated_at).toISOString()}`,
+              `slug: "issue-${num}"`,
+              tags.length ? `tags: [${tags.map(yq).join(', ')}]` : 'tags: []',
+              'draft: false',
+              '---',
+              '',
+              body,
+              '',
+              `> 本文由 [Issue #${num}](${issue.html_url}) 转换而来。`,
+              ''
+            ].join('\n');
+
+            const old = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '';
+            if (old === fm) {
+              core.setOutput('changed', 'false');
+              core.info('no change');
+            } else {
+              fs.writeFileSync(file, fm, 'utf8');
+              core.setOutput('changed', 'true');
+              core.setOutput('file', file);
+              core.info(`wrote ${file}`);
+            }
+
+      - name: Commit converted post
+        if: steps.conv.outputs.changed == 'true'
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "${{ steps.conv.outputs.file }}"
+          git commit -m "post: from issue #${{ github.event.issue.number }}"
+          git push
+
+      # ---------- 构建 ----------
+      - name: Install Hugo CLI
+        run: |
+          wget -O "${{ runner.temp }}/hugo.deb" \
+            "https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/hugo_extended_${HUGO_VERSION}_linux-amd64.deb"
+          sudo dpkg -i "${{ runner.temp }}/hugo.deb"
 
       - name: Setup Pages
         id: pages

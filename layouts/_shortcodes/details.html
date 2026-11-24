@@ -1,0 +1,5 @@
+{{- $t := .Get "title" -}}
+<details class="collapse">
+  <summary>{{ if $t }}{{ $t }}{{ else }}点开看看{{ end }}</summary>
+  <div>{{ .Inner | markdownify }}</div>
+</details>
