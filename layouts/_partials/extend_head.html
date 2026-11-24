@@ -244,8 +244,8 @@ kbd { background: var(--tertiary); border: 1px solid var(--border);
 .wx-temp { font-size: 2rem; font-weight: 700; line-height: 1; letter-spacing: -.02em; }
 .wx-desc { font-size: .95em; opacity: .9; }
 .wx-meta { margin-top: .45rem; font-size: .82em; opacity: .72; display: flex; gap: .9rem; flex-wrap: wrap; }
-.wx-days { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: .5rem; margin-top: .8rem; }
-.wx-day { padding: .55rem .6rem; border-radius: 10px; background: var(--entry); border: 1px solid var(--border); text-align: center; }
+.wx-days { display: grid; grid-template-columns: repeat(auto-fit, minmax(4.5rem, 1fr)); gap: .5rem; margin-top: .8rem; }
+.wx-day { padding: .55rem .5rem; border-radius: 10px; background: var(--entry); border: 1px solid var(--border); text-align: center; min-width: 0; }
 .wx-day-name { font-size: .76em; opacity: .72; }
 .wx-day-ico { font-size: 1.25rem; line-height: 1.5; }
 .wx-day-t { font-size: .84em; font-weight: 600; }
@@ -253,11 +253,17 @@ kbd { background: var(--tertiary); border: 1px solid var(--border);
 .wx-full .wx-now { gap: .9rem; }
 .wx-full .wx-temp { font-size: 3.1rem; }
 .wx-full .wx-ico { font-size: 3rem; }
-.wx-full .wx-days { grid-template-columns: repeat(7, minmax(0,1fr)); gap: .45rem; }
-.wx-hours { display: grid; grid-template-columns: repeat(12, minmax(0,1fr)); gap: .3rem; margin-top: .9rem; align-items: end; height: 92px; }
-.wx-bar { background: linear-gradient(180deg, var(--accent), rgba(75,139,245,.35)); border-radius: 4px 4px 0 0; min-height: 4px; position: relative; }
-.wx-bar span { position: absolute; top: -1.15rem; left: 50%; transform: translateX(-50%); font-size: .62em; opacity: .7; white-space: nowrap; }
-.wx-hours-lbl { display: grid; grid-template-columns: repeat(12, minmax(0,1fr)); gap: .3rem; margin-top: .2rem; font-size: .62em; opacity: .55; text-align: center; }
+.wx-full .wx-days { grid-template-columns: repeat(auto-fit, minmax(4.9rem, 1fr)); gap: .45rem; }
+.wx-hourwrap { margin-top: 1rem; }
+.wx-hourhead { display: flex; justify-content: space-between; align-items: baseline; gap: .6rem;
+               font-size: .76em; opacity: .72; flex-wrap: wrap; }
+.wx-hourtitle { font-weight: 600; }
+.wx-hours { display: flex; gap: .22rem; align-items: flex-end; height: 92px; margin-top: .5rem; }
+.wx-bar { flex: 1 1 0; min-width: 0; background: linear-gradient(180deg, var(--accent), rgba(75,139,245,.32));
+          border-radius: 5px 5px 0 0; min-height: 4px; position: relative; }
+.wx-bar span { position: absolute; top: -1.1rem; left: 50%; transform: translateX(-50%); font-size: .6em; opacity: .68; white-space: nowrap; }
+.wx-hours-lbl { display: flex; gap: .22rem; margin-top: .25rem; font-size: .62em; opacity: .55; }
+.wx-hours-lbl > div { flex: 1 1 0; min-width: 0; text-align: center; white-space: nowrap; }
 .wx-note { margin-top: .8rem; font-size: .72em; opacity: .55; }
 .wx-note a { color: var(--accent); }
 
@@ -315,10 +321,13 @@ kbd { background: var(--tertiary); border: 1px solid var(--border);
 .wx-loc-status:empty { display: none; }
 
 @media (max-width: 640px) {
-  .wx-full .wx-days { grid-template-columns: repeat(4, minmax(0,1fr)); }
-  .wx-hours, .wx-hours-lbl { grid-template-columns: repeat(6, minmax(0,1fr)); }
-  .wx-hours > :nth-child(n+7) { display: none; }
+  .wx-full .wx-now { gap: .55rem; }
   .wx-map iframe { height: 320px; }
+}
+@media (max-width: 480px) {
+  .wx-bar span { display: none; }
+  .wx-hours { height: 76px; }
+  .wx-hours-lbl { font-size: .58em; }
 }
 
 @media (display-mode: standalone) { .top-link { display: none; } }

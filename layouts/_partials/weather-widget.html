@@ -35,8 +35,11 @@
   <div class="wx-meta"></div>
   <div class="wx-days"></div>
   {{- if eq $mode "full" }}
-  <div class="wx-hours"></div>
-  <div class="wx-hours-lbl"></div>
+  <div class="wx-hourwrap">
+    <div class="wx-hourhead"><span class="wx-hourtitle">未来 12 小时</span><span class="wx-hourrange"></span></div>
+    <div class="wx-hours"></div>
+    <div class="wx-hours-lbl"></div>
+  </div>
   <div class="wx-alerts"></div>
 
   <div class="wx-map">

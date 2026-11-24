@@ -173,14 +173,18 @@
         var lo = Math.min.apply(null, temps), hi = Math.max.apply(null, temps), span = Math.max(1, hi - lo);
         var bars = box.querySelector('.wx-hours');
         var lbls = box.querySelector('.wx-hours-lbl');
+        var rng = box.querySelector('.wx-hourrange');
         if (bars) {
           bars.innerHTML = temps.map(function (v) {
-            var h = Math.round(18 + (v - lo) / span * 74);
+            var h = Math.round(16 + (v - lo) / span * 66);
             return '<div class="wx-bar" style="height:' + h + 'px"><span>' + num(v) + '°</span></div>';
           }).join('');
         }
         if (lbls) {
           lbls.innerHTML = times.map(function (t) { return '<div>' + t.slice(11, 13) + '时</div>'; }).join('');
+        }
+        if (rng && times.length) {
+          rng.textContent = times[0].slice(11, 13) + ':00 起 · ' + num(lo) + '°～' + num(hi) + '°';
         }
       }
     }).catch(function () {
