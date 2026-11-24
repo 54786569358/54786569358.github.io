@@ -310,4 +310,9 @@
 
     pill.textContent = '\u270e \u7f16\u8f91\u672c\u6587';
   }
+
+  /* deep link: /posts/<slug>/?edit=1 opens the editor right away */
+  if (/[?&]edit=1/.test(location.search)) {
+    setTimeout(start, 400);
+  }
 })();
