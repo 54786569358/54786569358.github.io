@@ -210,9 +210,16 @@
 
   function splitFrontMatter(text) {
     var s = String(text).replace(/^\uFEFF/, '');
-    var mm = /^\s*---\r?\n[\s\S]*?\r?\n---[ \t]*\r?\n?/.exec(s);
+    var m = /^\s*(---|\*\*\*|\+\+\+)[ \t]*\r?\n/.exec(s);
+    if (!m) { return { front: '', body: s }; }
+    var mark = m[1];
+    var esc = mark.split('').map(function (c) { return '\\' + c; }).join('');
+    var re = new RegExp('^' + esc + '[ \\t]*\\r?\\n?', 'm');
+    var rest = s.slice(m[0].length);
+    var mm = re.exec(rest);
     if (!mm) { return { front: '', body: s }; }
-    return { front: mm[0], body: s.slice(mm[0].length) };
+    var end = m[0].length + mm.index + mm[0].length;
+    return { front: s.slice(0, end), body: s.slice(end) };
   }
 
   /* ---------- flow ---------- */
