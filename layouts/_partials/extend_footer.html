@@ -159,6 +159,87 @@ document.addEventListener('DOMContentLoaded', function () {
 })();
 </script>
 
+{{- /* weather widgets: home card + /weather/ page (Open-Meteo, keyless, no server) */ -}}
+<script>
+(function () {
+  var WMO = { 0: '晴', 1: '大致晴朗', 2: '多云', 3: '阴', 45: '雾', 48: '雾凇', 51: '小毛毛雨', 53: '毛毛雨', 55: '大毛毛雨',
+              61: '小雨', 63: '中雨', 65: '大雨', 66: '冻雨', 67: '强冻雨', 71: '小雪', 73: '中雪', 75: '大雪', 77: '雪粒',
+              80: '阵雨', 81: '强阵雨', 82: '暴雨', 85: '阵雪', 86: '强阵雪', 95: '雷阵雨', 96: '雷阵雨伴冰雹', 99: '强雷暴伴冰雹' };
+  var ICO = { 0: '☀️', 1: '🌤️', 2: '⛅', 3: '☁️', 45: '🌫️', 48: '🌫️', 51: '🌦️', 53: '🌦️', 55: '🌦️',
+              61: '🌧️', 63: '🌧️', 65: '🌧️', 66: '🌧️', 67: '🌧️', 71: '🌨️', 73: '🌨️', 75: '❄️', 77: '❄️',
+              80: '🌦️', 81: '🌧️', 82: '⛈️', 85: '🌨️', 86: '❄️', 95: '⛈️', 96: '⛈️', 99: '⛈️' };
+  var DAY = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+  function tx(c) { return WMO[c] || '未知'; }
+  function ic(c) { return ICO[c] || '🌡️'; }
+  function rd(v) { return (v === null || v === undefined) ? '--' : Math.round(v); }
+  function nz(v) { return (v === null || v === undefined) ? 0 : v; }
+
+  function paint(box) {
+    var full = box.classList.contains('wx-full');
+    var url = 'https://api.open-meteo.com/v1/forecast?latitude=' + box.dataset.lat + '&longitude=' + box.dataset.lon +
+      '&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,precipitation' +
+      '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset' +
+      '&hourly=temperature_2m&timezone=Asia%2FShanghai&forecast_days=7';
+    fetch(url, { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (d) {
+      var c = d.current || {}, dl = d.daily || {};
+      var iEl = box.querySelector('.wx-ico'), tEl = box.querySelector('.wx-temp'),
+          dEl = box.querySelector('.wx-desc'), mEl = box.querySelector('.wx-meta');
+      if (iEl) iEl.textContent = ic(c.weather_code);
+      if (tEl) tEl.textContent = rd(c.temperature_2m) + '°';
+      if (dEl) dEl.textContent = tx(c.weather_code);
+      if (mEl) {
+        mEl.innerHTML = '<span>体感 ' + rd(c.apparent_temperature) + '°</span>' +
+                        '<span>湿度 ' + rd(c.relative_humidity_2m) + '%</span>' +
+                        '<span>风 ' + rd(c.wind_speed_10m) + ' km/h</span>' +
+                        '<span>降水 ' + nz(c.precipitation) + ' mm</span>' +
+                        (full && dl.sunrise ? '<span>日出 ' + dl.sunrise[0].slice(11, 16) + '</span><span>日落 ' + dl.sunset[0].slice(11, 16) + '</span>' : '');
+      }
+      var days = box.querySelector('.wx-days');
+      if (days && dl.time) {
+        var n = full ? 7 : 3;
+        days.innerHTML = dl.time.slice(0, n).map(function (t, i) {
+          var dt = new Date(t + 'T00:00:00+08:00');
+          var label = i === 0 ? '今天' : DAY[dt.getDay()];
+          return '<div class="wx-day"><div class="wx-day-name">' + label + '</div>' +
+                 '<div class="wx-day-ico">' + ic(dl.weather_code[i]) + '</div>' +
+                 '<div class="wx-day-t">' + rd(dl.temperature_2m_max[i]) + '° / ' + rd(dl.temperature_2m_min[i]) + '°</div>' +
+                 '<div class="wx-day-p">降水 ' + nz(dl.precipitation_probability_max[i]) + '%</div></div>';
+        }).join('');
+      }
+      if (full && d.hourly && d.hourly.time) {
+        var nowKey = new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Shanghai' }).slice(0, 13);
+        var idx = 0;
+        for (var i = 0; i < d.hourly.time.length; i++) {
+          if (d.hourly.time[i].replace('T', ' ').slice(0, 13) >= nowKey) { idx = i; break; }
+        }
+        var slice = d.hourly.time.slice(idx, idx + 12);
+        var vals = d.hourly.temperature_2m.slice(idx, idx + 12);
+        var min = Math.min.apply(null, vals), max = Math.max.apply(null, vals), span = Math.max(1, max - min);
+        var hEl = box.querySelector('.wx-hours'), lEl = box.querySelector('.wx-hours-lbl');
+        if (hEl) {
+          hEl.innerHTML = slice.map(function (t, i) {
+            var h = Math.round(18 + (vals[i] - min) / span * 74);
+            return '<div class="wx-bar" style="height:' + h + 'px"><span>' + rd(vals[i]) + '°</span></div>';
+          }).join('');
+        }
+        if (lEl) lEl.innerHTML = slice.map(function (t) { return '<div>' + t.slice(11, 13) + '时</div>'; }).join('');
+      }
+    }).catch(function () {
+      var dEl = box.querySelector('.wx-desc');
+      if (dEl) dEl.textContent = '取不到数据（网络或接口）';
+    });
+  }
+
+  function boot() {
+    var boxes = document.querySelectorAll('.wx');
+    if (!boxes.length) return;
+    boxes.forEach(paint);
+    setInterval(function () { boxes.forEach(paint); }, 600000);
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
+})();
+</script>
+
 {{- /* service worker: register after the page is idle so it never blocks rendering */ -}}
 <script>
 if ('serviceWorker' in navigator) {

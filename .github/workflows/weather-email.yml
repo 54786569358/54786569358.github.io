@@ -1,0 +1,33 @@
+name: Daily weather mail
+
+on:
+  schedule:
+    # 21:00 UTC = 05:00 次日 北京时间（Asia/Shanghai）
+    - cron: '0 21 * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: '只打印不发送'
+        required: false
+        default: '1'
+
+permissions:
+  contents: read
+
+jobs:
+  mail:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Send Shishi weather
+        env:
+          QQ_USER: ${{ secrets.QQ_USER }}
+          QQ_PASS: ${{ secrets.QQ_PASS }}
+          MAIL_TO: ${{ secrets.MAIL_TO }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run || '0' }}
+        run: python scripts/weather_mail.py

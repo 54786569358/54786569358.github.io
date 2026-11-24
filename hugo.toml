@@ -90,6 +90,11 @@ enableGitInfo = true
     url = "/moments/"
     weight = 20
   [[menu.main]]
+    identifier = "weather"
+    name = "天气"
+    url = "/weather/"
+    weight = 25
+  [[menu.main]]
     identifier = "gallery"
     name = "相册"
     url = "/gallery/"
