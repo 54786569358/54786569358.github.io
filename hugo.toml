@@ -1,7 +1,7 @@
 baseURL = "https://54786569358.github.io/"
 locale = "zh-cn"
 defaultContentLanguage = "zh-cn"
-title = "燕江的博客"
+title = "燕绛的博客"
 theme = "PaperMod"
 enableRobotsTXT = true
 hasCJKLanguage = true
@@ -60,7 +60,7 @@ enableGitInfo = true
 
   [params.profileMode]
     enabled = false
-    title = "燕江的博客"
+    title = "燕绛的博客"
     subtitle = "记录、思考、折腾"
     imageUrl = ""
     imageTitle = ""
