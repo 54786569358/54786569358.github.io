@@ -123,3 +123,7 @@ enableGitInfo = true
     startLevel = 2
     endLevel = 3
     ordered = false
+
+[params.waline]
+  # leave empty to keep giscus; set to your Vercel URL to switch
+  serverURL = ""

@@ -70,6 +70,8 @@
   .status-dot { width:8px; height:8px; border-radius:50%; background:var(--err); display:inline-block; margin-right:.35rem; }
   .status-dot.on { background:var(--ok); }
 </style>
+<link rel="stylesheet" href="https://uicdn.toast.com/editor/latest/toastui-editor.min.css">
+  <script src="https://uicdn.toast.com/editor/latest/toastui-editor-all.min.js"></script>
 </head>
 <body>
 <header>
@@ -124,6 +126,7 @@
 
 也可以直接用站点的短代码，例如：
 {{&lt; note &gt;}}提示内容{{&lt; /note &gt;}}"></textarea>
+    <div id="editor" style="display:none;margin-top:.35rem"></div>
     <div class="preview card" id="preview" style="margin-top:1rem"></div>
 
     <div class="row" style="margin-top:1rem; justify-content:flex-end">
@@ -178,6 +181,58 @@
 <script>
 (function () {
   'use strict';
+  /* --- toast ui editor --- */
+  var editor = null;
+  var editorTries = 0;
+
+  function syncFromTextarea() {
+    if (!editor) { return; }
+    editor.setMarkdown(document.getElementById('body').value || '', false);
+  }
+
+  function initEditor() {
+    if (editor) { return; }
+    if (!window.toastui || !window.toastui.Editor) {
+      editorTries++;
+      if (editorTries < 40) { setTimeout(initEditor, 150); }
+      return;
+    }
+    var box = document.getElementById('editor');
+    var ta = document.getElementById('body');
+    if (!box || !ta) { return; }
+    box.style.display = 'block';
+    ta.style.display = 'none';
+    var seg = document.getElementById('tabWrite');
+    if (seg && seg.parentNode) { seg.parentNode.style.display = 'none'; }
+    try {
+      editor = new window.toastui.Editor({
+        el: box,
+        height: '560px',
+        initialEditType: 'wysiwyg',
+        previewStyle: 'vertical',
+        usageStatistics: false,
+        hideModeSwitch: false,
+        language: 'zh-CN',
+        initialValue: ta.value || '',
+        toolbarItems: [
+          ['heading', 'bold', 'italic', 'strike'],
+          ['hr', 'quote'],
+          ['ul', 'ol', 'task', 'indent', 'outdent'],
+          ['table', 'image', 'link'],
+          ['code', 'codeblock']
+        ]
+      });
+      editor.on('change', function () {
+        ta.value = editor.getMarkdown();
+        ta.dispatchEvent(new Event('input'));
+      });
+    } catch (e) {
+      editor = null;
+      box.style.display = 'none';
+      ta.style.display = '';
+      if (seg && seg.parentNode) { seg.parentNode.style.display = ''; }
+    }
+  }
 
   var REPO = '54786569358/54786569358.github.io';
   var BRANCH = 'main';
@@ -282,6 +337,7 @@
       return r.json();
     }).then(function (u) {
       setConnected(true, u.login);
+      openDeepLink();
       loadList();
     }).catch(function () {
       setConnected(false);
@@ -290,6 +346,25 @@
   }
 
   /* ---------- 文章列表 ---------- */
+  function openDeepLink() {
+    var m = /[?&](slug|file)=([^&]+)/.exec(location.search);
+    if (!m) { return; }
+    var value = decodeURIComponent(m[2]);
+    if (m[1] === 'file') {
+      openFile(value.replace(/^content\//, ''));
+      return;
+    }
+    gh('/contents/content/posts?ref=' + BRANCH).then(function (r) { return r.json(); }).then(function (items) {
+      items = (items || []).filter(function (i) { return /\.md$/.test(i.name); });
+      var hit = null;
+      items.forEach(function (i) {
+        var base = i.name.replace(/\.md$/, '').replace(/^\d{4}-\d{2}-\d{2}-/, '');
+        if (base === value) { hit = i; }
+      });
+      if (hit) { openFile(hit.path); }
+      else { msg($('msg'), '\u6ca1\u627e\u5230\u5bf9\u5e94\u6587\u7ae0\uff0c\u53f3\u4fa7\u5217\u8868\u91cc\u9009\u4e00\u4e2a\u3002', 'err'); }
+    }).catch(function () {});
+  }
   function loadList() {
     var box = $('postList');
     box.innerHTML = '<p class="hint">加载中…</p>';
@@ -329,7 +404,7 @@
       $('date').value = nowLocal(meta.date || f.name.slice(0, 10));
       $('summary').value = (meta.summary || '').replace(/^["']|["']$/g, '');
       $('tags').value = (meta.tags || '').replace(/[\[\]"]/g, '').replace(/\s*,\s*/g, ', ');
-      $('body').value = body;
+      $('body').value = body; syncFromTextarea();
       editingPath = path;
       editingSha = f.sha;
       var base = path.split('/').pop().replace(/^\d{4}-\d{2}-\d{2}-/, '').replace(/\.md$/, '');
@@ -417,7 +492,7 @@
       var d = JSON.parse(raw);
       $('title').value = d.title || ''; $('slug').value = d.slug || '';
       $('tags').value = d.tags || ''; $('summary').value = d.summary || '';
-      $('body').value = d.body || ''; $('date').value = d.date || nowLocal();
+      $('body').value = d.body || ''; syncFromTextarea(); $('date').value = d.date || nowLocal();
       editingPath = d.path || null; editingSha = d.sha || null;
       if (d.body) msg($('msg'), '已恢复上次未发布的草稿。', 'ok');
     } catch (e) {}
@@ -475,6 +550,7 @@
   });
 
   restoreDraft();
+  setTimeout(initEditor, 0);
   checkToken();
 })();
 </script>

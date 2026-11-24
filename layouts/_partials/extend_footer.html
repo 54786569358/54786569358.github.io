@@ -1,3 +1,21 @@
+{{- /* author-only "edit this post" pill: shown when a GitHub token is stored locally */}}
+<script>
+(function () {
+  var m = /^\/posts\/([^\/]+)\/?$/.exec(location.pathname);
+  if (!m) { return; }
+  var tok = null;
+  try { tok = localStorage.getItem('blog_gh_token'); } catch (e) { return; }
+  if (!tok) { return; }
+  var a = document.createElement('a');
+  a.href = '/admin/?slug=' + encodeURIComponent(m[1]);
+  a.textContent = '\u270e \u7f16\u8f91\u672c\u6587';
+  a.style.cssText = 'display:inline-block;margin:.9rem 0 0;font-size:.85rem;padding:.35rem .8rem;' +
+    'border:1px solid var(--border);border-radius:999px;color:var(--secondary);text-decoration:none';
+  var host = document.querySelector('.post-header') || document.querySelector('.post-content') ||
+             document.querySelector('.main');
+  if (host) { host.appendChild(a); }
+})();
+</script>
 {{- /* ---------- footer: stat line + enhancements ---------- */ -}}
 {{- $postCount := len (where site.RegularPages "Section" "posts") -}}
 {{- $moments := len (where site.RegularPages "Section" "moments") -}}

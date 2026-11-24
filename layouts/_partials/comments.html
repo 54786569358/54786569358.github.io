@@ -1,9 +1,48 @@
-{{- /* giscus comments — GitHub Discussions as the backend.
-       Requires the giscus GitHub App on the repo (installed once).
-       The iframe loads as soon as the reader reaches the comment area, and a
-       fallback link appears if the script cannot be loaded (network / blocked). */ -}}
+{{- /* Comments.
+       Priority: Waline (self-hosted, anonymous OK) when site.Params.waline.serverURL is set,
+       otherwise giscus (GitHub Discussions, requires a GitHub login to post).           */ -}}
+{{- $w := site.Params.waline -}}
 {{- $giscus := site.Params.giscus -}}
-{{- if and $giscus (or $giscus.repo $giscus.repoId) -}}
+{{- if and $w $w.serverURL -}}
+<div class="comments-wrap" style="margin-top:2.6rem">
+  <h3 style="margin-bottom:1rem">评论</h3>
+  <div id="waline"></div>
+  <p id="waline-fallback" style="display:none;font-size:.9rem;opacity:.7">
+    评论组件没加载出来，稍后刷新再试。
+  </p>
+</div>
+<link rel="stylesheet" href="https://unpkg.com/@waline/client@v3/dist/waline.css">
+<script type="module">
+  import { init } from 'https://unpkg.com/@waline/client@v3/dist/waline.mjs';
+  try {
+    init({
+      el: '#waline',
+      serverURL: {{ $w.serverURL }},
+      lang: 'zh-CN',
+      dark: 'html[data-theme="dark"]',
+      login: 'enable',
+      meta: ['nick', 'mail', 'link'],
+      requiredMeta: ['nick'],
+      pageview: false,
+      comment: false,
+      search: false,
+      imageUploader: false,
+      emoji: [
+        'https://unpkg.com/@waline/emojis@1.2.0/weibo',
+        'https://unpkg.com/@waline/emojis@1.2.0/bilibili',
+        'https://unpkg.com/@waline/emojis@1.2.0/tieba'
+      ],
+      locale: {
+        placeholder: '说点什么（可以匿名，留个昵称就行）…',
+        sofa: '还没有评论，来坐第一个沙发。'
+      }
+    });
+  } catch (e) {
+    var fb = document.getElementById('waline-fallback');
+    if (fb) fb.style.display = 'block';
+  }
+</script>
+{{- else if and $giscus (or $giscus.repo $giscus.repoId) -}}
 <div class="comments-wrap" style="margin-top:2.6rem">
   <h3 style="margin-bottom:1rem">评论</h3>
   <div id="giscus-slot"
@@ -50,7 +89,6 @@
     if (fb) fb.style.display = 'block';
   }
 
-  /* if the iframe never appears, offer the GitHub link instead of a blank box */
   var waited = 0;
   var timer = setInterval(function () {
     waited += 500;
@@ -64,7 +102,6 @@
     }
   }, 500);
 
-  /* tell giscus when the reader flips dark mode */
   var dark = document.documentElement.getAttribute('data-theme') === 'dark';
   new MutationObserver(function () {
     var now = document.documentElement.getAttribute('data-theme') === 'dark';
