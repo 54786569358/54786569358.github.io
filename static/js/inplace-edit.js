@@ -209,15 +209,14 @@
   }
 
   function splitFrontMatter(text) {
-    var mm = /^---\r?\n[\s\S]*?\r?\n---\r?\n?/.exec(text);
-    if (!mm) { return { front: '', body: text }; }
-    return { front: mm[0], body: text.slice(mm[0].length) };
+    var s = String(text).replace(/^\uFEFF/, '');
+    var mm = /^\s*---\r?\n[\s\S]*?\r?\n---[ \t]*\r?\n?/.exec(s);
+    if (!mm) { return { front: '', body: s }; }
+    return { front: mm[0], body: s.slice(mm[0].length) };
   }
 
   /* ---------- flow ---------- */
-  function dbg(s) {
-    try { document.title = 'EDIT ' + String(s).replace(/\s+/g, ' ').slice(0, 80); } catch (e) {}
-  }
+  function dbg() { /* trace disabled */ }
 
   function start() {
     pill.textContent = '\u6b63\u5728\u8bfb\u53d6\u2026';
