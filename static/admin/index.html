@@ -382,8 +382,15 @@
   function loadList() {
     var box = $('postList');
     box.innerHTML = '<p class="hint">加载中…</p>';
+    var url = 'https://api.github.com' + API_REPO + '/contents/content/posts?ref=' + BRANCH;
     gh(API_REPO + '/contents/content/posts?ref=' + BRANCH).then(function (r) {
-      if (!r.ok) throw new Error('list failed');
+      if (!r.ok) {
+        return r.text().then(function (t) {
+          var detail = '';
+          try { detail = (JSON.parse(t) || {}).message || ''; } catch (e) { detail = t.slice(0, 120); }
+          throw { status: r.status, detail: detail, url: url };
+        });
+      }
       return r.json();
     }).then(function (items) {
       items = (items || []).filter(function (i) { return /\.md$/.test(i.name); })
@@ -397,7 +404,13 @@
         a.addEventListener('click', function (e) { e.preventDefault(); openFile(it.path); });
         box.appendChild(a);
       });
-    }).catch(function () { box.innerHTML = '<p class="hint">读不到列表（检查令牌权限）。</p>'; });
+    }).catch(function (err) {
+      var code = (err && err.status) ? ('HTTP ' + err.status + '：' + (err.detail || '')) : (err && err.message ? err.message : '未知错误');
+      var tip = '';
+      if (err && err.status === 403) { tip = '<br>令牌缺少 Contents 权限：GitHub → Settings → Developer settings → Fine-grained tokens → 这枚令牌 → Repository permissions → Contents 设为 Read and write。'; }
+      if (err && err.status === 404) { tip = '<br>路径或仓库名不对（也可能令牌没勾这个仓库）。'; }
+      box.innerHTML = '<p class="hint">读不到列表：' + esc(code) + tip + '</p>';
+    });
   }
 
   function openFile(path) {
