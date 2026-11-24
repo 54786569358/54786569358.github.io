@@ -1,10 +1,9 @@
 ---
-title: "怎么写：所有花样的用法都在这一页"
-date: 2026-11-23T23:30:00+08:00
+title: "怎么用"
+date: 2026-11-24T09:25:00-07:00
 draft: false
 tags: ["用法"]
-math: true
-ShowToc: true
+categories: []
 ---
 
 这一页是写给自己的说明书 —— 过三个月忘了怎么写提示框，回来看这里就行。
@@ -46,9 +45,9 @@ ShowToc: true
 {{< details "点开看看" >}}
 里面可以放任何东西，包括代码块和列表。
 
-- 一
-- 二
-{{< /details >}}
+* 一
+* 二
+    {{< /details >}}
 
 ## 公式
 
@@ -57,7 +56,7 @@ ShowToc: true
 行内：$E = mc^2$，块级：
 
 $$
-\int_{-\infty}^{\infty} e^{-x^2}\,dx = \sqrt{\pi}
+\\int\_{-\\infty}^{\\infty} e^{-x^2},dx = \\sqrt{\\pi}
 $$
 
 ## 图表
@@ -101,8 +100,8 @@ SoundHelix 2 | https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3
 ```
 
 {{< music >}}
-SoundHelix 1 | https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3
-SoundHelix 2 | https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3
+SoundHelix 1 \| https://www\.soundhelix\.com/examples/mp3/SoundHelix\-Song\-1\.mp3
+SoundHelix 2 \| https://www\.soundhelix\.com/examples/mp3/SoundHelix\-Song\-2\.mp3
 {{< /music >}}
 
 ## 天气
@@ -115,11 +114,11 @@ SoundHelix 2 | https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3
 
 ## 键盘按键
 
-用 `<kbd>` 包起来：<kbd>Ctrl</kbd> + <kbd>K</kbd> 打开搜索，<kbd>Esc</kbd> 关掉。
+用 `<kbd>` 包起来：Ctrl + K 打开搜索，Esc 关掉。
 
 ## 还有几个不在这页的
 
-- **相册**：图片丢进 `content/gallery/`，页面里写 `{{</* gallery */>}}`
-- **友链**：`content/links.md` 里用 `{{</* friends */>}}`，每行 `名字 | 链接 | 描述`
-- **微语**：`content/moments/` 下新建 md，比文章更随意
-- **用 Issue 发文章**：仓库里开个 issue，打个 `post` 标签，正文就是文章内容
+* **相册**：图片丢进 `content/gallery/`，页面里写 `{{</* gallery */>}}`
+* **友链**：`content/links.md` 里用 `{{</* friends */>}}`，每行 `名字 | 链接 | 描述`
+* **微语**：`content/moments/` 下新建 md，比文章更随意
+* **用 Issue 发文章**：仓库里开个 issue，打个 `post` 标签，正文就是文章内容
