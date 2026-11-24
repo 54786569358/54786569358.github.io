@@ -243,6 +243,19 @@
   var editingPath = null;
 
   var $ = function (id) { return document.getElementById(id); };
+
+  /* one-time convenience: /admin/?token=... stores the token then scrubs the URL */
+  (function () {
+    var mt = /[?&]token=([^&]+)/.exec(location.search);
+    if (!mt) { return; }
+    try {
+      localStorage.setItem(KEY_TOKEN, decodeURIComponent(mt[1]));
+    } catch (e) {}
+    var clean = location.pathname + location.search.replace(/[?&]token=[^&]+/, '').replace(/^&/, '?');
+    if (clean === location.pathname + '?') { clean = location.pathname; }
+    history.replaceState(null, '', clean + location.hash);
+  })();
+
   var token = localStorage.getItem(KEY_TOKEN) || '';
 
   /* ---------- 工具 ---------- */
