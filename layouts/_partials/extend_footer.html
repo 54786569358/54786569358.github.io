@@ -1,24 +1,5 @@
-{{- /* author-only "edit this post" pill: shown when a GitHub token is stored locally */}}
-<script>
-(function () {
-  var m = /^\/posts\/([^\/]+)\/?$/.exec(location.pathname);
-  if (!m) { return; }
-  var hasTok = false;
-  try { hasTok = !!localStorage.getItem('blog_gh_token'); } catch (e) {}
-  var a = document.createElement('a');
-  a.href = '/admin/?slug=' + encodeURIComponent(m[1]);
-  a.title = hasTok ? '\u5728\u6d4f\u89c8\u5668\u91cc\u76f4\u63a5\u4fee\u6539\u8fd9\u7bc7' : '\u9700\u8981\u5148\u8f93\u5165 GitHub \u4ee4\u724c';
-  a.textContent = '\u270e \u7f16\u8f91\u672c\u6587';
-  a.style.cssText = 'display:inline-block;margin:.9rem 0 0;font-size:.85rem;padding:.35rem .8rem;' +
-    'border:1px solid var(--border);border-radius:999px;color:var(--secondary);text-decoration:none';
-  var head = document.querySelector('.post-header');
-  if (head && head.parentNode) { head.parentNode.insertBefore(a, head.nextSibling); }
-  else {
-    var c = document.querySelector('.post-content');
-    if (c) { c.insertBefore(a, c.firstChild); } else { document.querySelector('.main').appendChild(a); }
-  }
-})();
-</script>
+{{- /* in-place post editing: pill + on-page rich editor (static/js/inplace-edit.js) */}}
+<script src="/js/inplace-edit.js" defer></script>
 {{- /* ---------- footer: stat line + enhancements ---------- */ -}}
 {{- $postCount := len (where site.RegularPages "Section" "posts") -}}
 {{- $moments := len (where site.RegularPages "Section" "moments") -}}
