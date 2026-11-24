@@ -177,9 +177,9 @@ document.addEventListener('DOMContentLoaded', function () {
   function paint(box) {
     var full = box.classList.contains('wx-full');
     var url = 'https://api.open-meteo.com/v1/forecast?latitude=' + box.dataset.lat + '&longitude=' + box.dataset.lon +
-      '&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,precipitation' +
-      '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset' +
-      '&hourly=temperature_2m&timezone=Asia%2FShanghai&forecast_days=7';
+      '&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,wind_gusts_10m,precipitation' +
+      '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,sunrise,sunset,uv_index_max,wind_gusts_10m_max' +
+      '&hourly=temperature_2m,precipitation_probability&timezone=Asia%2FShanghai&forecast_days=7';
     fetch(url, { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (d) {
       var c = d.current || {}, dl = d.daily || {};
       var iEl = box.querySelector('.wx-ico'), tEl = box.querySelector('.wx-temp'),
@@ -206,6 +206,7 @@ document.addEventListener('DOMContentLoaded', function () {
                  '<div class="wx-day-p">降水 ' + nz(dl.precipitation_probability_max[i]) + '%</div></div>';
         }).join('');
       }
+      if (full) renderAlerts(box, d);
       if (full && d.hourly && d.hourly.time) {
         var nowKey = new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Shanghai' }).slice(0, 13);
         var idx = 0;
@@ -230,7 +231,127 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
+  var BFT = [1, 6, 12, 20, 29, 39, 50, 62, 75, 89, 103, 118];
+  function beaufort(kmh) {
+    var b = 0;
+    for (var i = 0; i < BFT.length; i++) { if (kmh >= BFT[i]) b = i + 1; }
+    return b;
+  }
+  var RAIN = [61, 63, 65, 66, 67, 80, 81, 82, 95, 96, 99];
+
+  function chip(cls, text) { return '<span class="wx-alert ' + cls + '">' + text + '</span>'; }
+
+  function renderAlerts(box, d) {
+    var host = box.querySelector('.wx-alerts');
+    if (!host) return;
+    var c = d.current || {}, dl = d.daily || {};
+    var out = [];
+    var gust = nz(c.wind_gusts_10m), wind = nz(c.wind_speed_10m);
+    var tmax = dl.temperature_2m_max ? dl.temperature_2m_max[0] : null;
+    var tmin = dl.temperature_2m_min ? dl.temperature_2m_min[0] : null;
+    var pop = dl.precipitation_probability_max ? nz(dl.precipitation_probability_max[0]) : 0;
+    var uv = dl.uv_index_max ? nz(dl.uv_index_max[0]) : 0;
+    var code = c.weather_code;
+    var gb = beaufort(gust), wb = beaufort(wind);
+
+    if (gb >= 8) out.push(chip('danger', '大风警报 · 阵风 ' + rd(gust) + ' km/h（' + gb + ' 级）'));
+    else if (gb >= 6) out.push(chip('warn', '风力较大 · 阵风 ' + rd(gust) + ' km/h（' + gb + ' 级）'));
+    else out.push(chip('info', '风力平稳 · ' + rd(wind) + ' km/h（' + wb + ' 级）'));
+
+    if (pop >= 80 || RAIN.indexOf(code) >= 0) out.push(chip('warn', '有降雨 · 概率 ' + pop + '%'));
+    else if (pop >= 40) out.push(chip('info', '可能下雨 · 概率 ' + pop + '%'));
+
+    if (tmax !== null && tmax >= 35) out.push(chip('danger', '高温 · 最高 ' + rd(tmax) + '°'));
+    else if (tmax !== null && tmax >= 32) out.push(chip('warn', '偏热 · 最高 ' + rd(tmax) + '°'));
+    if (tmin !== null && tmin <= 8) out.push(chip('warn', '低温 · 最低 ' + rd(tmin) + '°'));
+    if (uv >= 8) out.push(chip('warn', '紫外线很强 · UV ' + rd(uv)));
+
+    host.innerHTML = out.join('');
+  }
+
+  /* ---- 台风：中国气象局台风网公开接口（CORS 已开放） ---- */
+  var TY_LEVEL = { TD: '热带低压', TS: '热带风暴', STS: '强热带风暴', TY: '台风', STY: '强台风', SuperTY: '超强台风' };
+  var DIRS = ['北', '东北', '东', '东南', '南', '西南', '西', '西北'];
+  var HOME = { lat: 24.7217, lon: 118.6472 };
+
+  function toRad(x) { return x * Math.PI / 180; }
+  function distKm(lat1, lon1, lat2, lon2) {
+    var R = 6371, dLat = toRad(lat2 - lat1), dLon = toRad(lon2 - lon1);
+    var a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+  function bearing(lat1, lon1, lat2, lon2) {
+    var y = Math.sin(toRad(lon2 - lon1)) * Math.cos(toRad(lat2));
+    var x = Math.cos(toRad(lat1)) * Math.sin(toRad(lat2)) -
+            Math.sin(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.cos(toRad(lon2 - lon1));
+    var b = Math.atan2(y, x) * 180 / Math.PI;
+    return DIRS[Math.round(((b + 360) % 360) / 45) % 8];
+  }
+  function grabJson(txt) {
+    var a = txt.indexOf('{'), b = txt.lastIndexOf('}');
+    return JSON.parse(txt.slice(a, b + 1));
+  }
+  var TY_LIST = 'https://typhoon.nmc.cn/weatherservice/typhoon/jsons/list_default';
+  var TY_VIEW = 'https://typhoon.nmc.cn/weatherservice/typhoon/jsons/view_';
+
+  function loadTyphoon() {
+    var host = document.querySelector('#wxTyphoon .wx-ty-body');
+    if (!host) return;
+    fetch(TY_LIST, { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) {
+      var list = (grabJson(t).typhoonList || []).filter(function (x) { return x && x[7] !== 'stop'; });
+      if (!list.length) {
+        host.innerHTML = '<span class="wx-ty-none">西北太平洋和南海当前无活跃热带气旋。</span> ' +
+          '<a href="https://typhoon.nmc.cn/web.html" target="_blank" rel="noopener">台风网 ↗</a>';
+        return;
+      }
+      return fetch(TY_VIEW + list[0][0], { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t2) {
+        var ty = grabJson(t2).typhoon || [];
+        var pts = ty[8] || [];
+        if (!pts.length) { host.innerHTML = '<span class="wx-ty-none">有活跃台风，暂无路径数据。</span>'; return; }
+        var p = pts[pts.length - 1];
+        var lon = p[4], lat = p[5], pr = p[6], wnd = p[7], mvDir = p[8], mvSpd = p[9];
+        var d = distKm(HOME.lat, HOME.lon, lat, lon);
+        var dir = bearing(HOME.lat, HOME.lon, lat, lon);
+        var lvl = TY_LEVEL[p[3]] || p[3] || '未知';
+        var html = '<div><span class="wx-ty-name">' + (ty[2] || '') + ' ' + (ty[1] || '') + '（' + (ty[3] || '') + ' 号）</span> · ' + lvl + '</div>' +
+          '<div class="wx-ty-row">中心位置 ' + lat.toFixed(1) + '°N ' + lon.toFixed(1) + '°E，距石狮约 <b>' + rd(d) + ' km</b>（' + dir + '方向）</div>' +
+          '<div class="wx-ty-row">中心气压 ' + pr + ' hPa · 最大风速 ' + wnd + ' m/s（' + beaufort(wnd * 3.6) + ' 级） · 移动 ' + (mvDir || '') + ' ' + (mvSpd || '') + ' km/h</div>' +
+          '<div class="wx-ty-row">更新 ' + (p[1] ? p[1].slice(0, 4) + '-' + p[1].slice(4, 6) + '-' + p[1].slice(6, 8) + ' ' + p[1].slice(8, 10) + ':' + p[1].slice(10, 12) : '') + '（北京时间）</div>';
+        if (d <= 800) {
+          html += '<div class="wx-ty-warn">台风距石狮约 ' + rd(d) + ' km，已进入需要关注的范围，注意当地气象台发布的预警信号。</div>';
+        }
+        html += '<div class="wx-ty-row"><a href="https://typhoon.nmc.cn/web.html" target="_blank" rel="noopener">看路径图 ↗</a></div>';
+        host.innerHTML = html;
+      });
+    }).catch(function () {
+      host.innerHTML = '<span class="wx-ty-none">台风数据取不到（接口访问失败）。</span> ' +
+        '<a href="https://typhoon.nmc.cn/web.html" target="_blank" rel="noopener">直接打开台风网 ↗</a>';
+    });
+  }
+
+  function initMap() {
+    var frame = document.getElementById('wxWindy');
+    if (!frame) return;
+    var tabs = document.querySelectorAll('.wx-map-tabs button');
+    function srcFor(overlay, product) {
+      return 'https://embed.windy.com/embed2.html?lat=24.72&lon=118.65&detailLat=24.72&detailLon=118.65' +
+        '&width=900&height=430&zoom=6&level=surface&overlay=' + overlay + '&product=' + product +
+        '&menu=&message=&marker=&calendar=now&pressure=&type=map&location=coordinates&detail=' +
+        '&metricWind=default&metricTemp=default&radarRange=-1&lang=zh';
+    }
+    Array.prototype.forEach.call(tabs, function (b) {
+      b.addEventListener('click', function () {
+        Array.prototype.forEach.call(tabs, function (x) { x.classList.remove('on'); });
+        b.classList.add('on');
+        frame.src = srcFor(b.dataset.overlay, b.dataset.product);
+      });
+    });
+  }
+
   function boot() {
+    initMap();
+    if (document.getElementById('wxTyphoon')) loadTyphoon();
     var boxes = document.querySelectorAll('.wx');
     if (!boxes.length) return;
     boxes.forEach(paint);

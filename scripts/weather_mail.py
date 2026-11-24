@@ -53,9 +53,9 @@ def fetch():
         "latitude": LAT,
         "longitude": LON,
         "current": "temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,"
-                   "wind_speed_10m,precipitation,is_day",
+                   "wind_speed_10m,wind_gusts_10m,precipitation,is_day",
         "daily": "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,"
-                 "precipitation_sum,sunrise,sunset,uv_index_max",
+                 "precipitation_sum,sunrise,sunset,uv_index_max,wind_gusts_10m_max",
         "hourly": "temperature_2m,precipitation_probability",
         "timezone": "Asia/Shanghai",
         "forecast_days": "7",
@@ -64,6 +64,67 @@ def fetch():
     req = urllib.request.Request(url, headers={"User-Agent": "shishi-weather-mail/1.0"})
     with urllib.request.urlopen(req, timeout=30) as resp:
         return json.loads(resp.read().decode("utf-8"))
+
+
+BFT = [1, 6, 12, 20, 29, 39, 50, 62, 75, 89, 103, 118]
+
+
+def beaufort(kmh):
+    """km/h -> 蒲福风级。"""
+    b = 0
+    for i, th in enumerate(BFT):
+        if kmh >= th:
+            b = i + 1
+    return b
+
+
+TY_LEVEL = {"TD": "热带低压", "TS": "热带风暴", "STS": "强热带风暴",
+            "TY": "台风", "STY": "强台风", "SuperTY": "超强台风"}
+
+
+def _grab_json(txt):
+    return json.loads(txt[txt.index("{"):txt.rindex("}") + 1])
+
+
+def _dist_km(lat1, lon1, lat2, lon2):
+    from math import radians, sin, cos, atan2, sqrt
+    r = 6371.0
+    dlat, dlon = radians(lat2 - lat1), radians(lon2 - lon1)
+    a = sin(dlat / 2) ** 2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlon / 2) ** 2
+    return 2 * r * atan2(sqrt(a), sqrt(1 - a))
+
+
+def fetch_typhoon():
+    """中国气象局台风网：返回当前活跃台风（取最近一个）或 None。"""
+    try:
+        req = urllib.request.Request(
+            "https://typhoon.nmc.cn/weatherservice/typhoon/jsons/list_default",
+            headers={"User-Agent": "shishi-weather-mail/1.0"})
+        with urllib.request.urlopen(req, timeout=25) as resp:
+            lst = _grab_json(resp.read().decode("utf-8", "ignore")).get("typhoonList") or []
+        active = [x for x in lst if x and x[7] != "stop"]
+        if not active:
+            return None
+        tid = active[0][0]
+        req2 = urllib.request.Request(
+            "https://typhoon.nmc.cn/weatherservice/typhoon/jsons/view_%s" % tid,
+            headers={"User-Agent": "shishi-weather-mail/1.0"})
+        with urllib.request.urlopen(req2, timeout=25) as resp2:
+            ty = _grab_json(resp2.read().decode("utf-8", "ignore")).get("typhoon") or []
+        pts = ty[8] if len(ty) > 8 else []
+        if not pts:
+            return None
+        p = pts[-1]
+        lat, lon = p[5], p[4]
+        return {
+            "name": ty[2] or "", "name_en": ty[1] or "", "num": ty[3] or "",
+            "level": TY_LEVEL.get(p[3], p[3]), "lat": lat, "lon": lon,
+            "pressure": p[6], "wind": p[7], "dir": p[8], "speed": p[9],
+            "time": p[1], "dist": _dist_km(LAT, LON, lat, lon),
+        }
+    except Exception as exc:  # noqa: BLE001 - 台风接口失败不应影响主流程
+        print("[台风] 取不到：%s" % exc, file=sys.stderr)
+        return None
 
 
 def advise(d, i=0):
@@ -91,7 +152,7 @@ def advise(d, i=0):
     return tips
 
 
-def build_html(d, now):
+def build_html(d, now, ty=None):
     cur = d["current"]
     dl = d["daily"]
     code = cur["weather_code"]
@@ -124,6 +185,28 @@ def build_html(d, now):
                     "border-left:3px solid #f0b429;border-radius:6px;color:#6b5200;font-size:13px'>"
                     + "<br>".join(tips) + "</div>")
 
+    ty_html = ""
+    if ty:
+        warn = ""
+        if ty["dist"] <= 1000:
+            warn = ("<div style='margin-top:8px;padding:8px 12px;background:#fee2e2;border-radius:6px;"
+                    "color:#b91c1c;font-size:13px'>台风中心距石狮约 {:.0f} km，注意当地气象台预警信号。</div>"
+                    ).format(ty["dist"])
+        ty_html = (
+            "<div style='margin:14px 0 0;padding:12px 14px;background:#fff5f5;border:1px solid #fecaca;"
+            "border-radius:8px;color:#7f1d1d;font-size:13px;line-height:1.7'>"
+            "<b>台风动向</b>　{n} {e}（{num} 号）· {lv}<br>"
+            "中心 {lat:.1f}°N {lon:.1f}°E，距石狮约 <b>{d:.0f} km</b>；气压 {p} hPa，最大风速 {w} m/s（{b} 级）<br>"
+            "移动 {dr} {sp} km/h　<a href='https://typhoon.nmc.cn/web.html' style='color:#b91c1c'>看路径图</a>"
+            "{warn}</div>"
+        ).format(n=ty["name"], e=ty["name_en"], num=ty["num"], lv=ty["level"],
+                 lat=ty["lat"], lon=ty["lon"], d=ty["dist"], p=ty["pressure"],
+                 w=ty["wind"], b=beaufort(ty["wind"] * 3.6), dr=ty["dir"] or "", sp=ty["speed"] or "",
+                 warn=warn)
+    else:
+        ty_html = ("<div style='margin:14px 0 0;padding:8px 14px;background:#f0f9ff;border-radius:6px;"
+                   "color:#075985;font-size:13px'>台风动向：西北太平洋和南海当前无活跃热带气旋。</div>")
+
     return """<!DOCTYPE html>
 <html><body style="margin:0;padding:24px 12px;background:#f5f6f8;font-family:-apple-system,'Segoe UI','Microsoft YaHei',sans-serif">
 <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 2px 12px rgba(16,24,40,.08)">
@@ -139,9 +222,10 @@ def build_html(d, now):
   <div style="padding:18px 24px 6px">
     <div style="font-size:12px;color:#98a2b3;letter-spacing:.08em">今天</div>
     <div style="margin-top:6px;font-size:14px;color:#344054;line-height:1.7">
-      风 {wind:.0f} km/h · 降水概率 {pop:.0f}% · 日出 {sunrise} · 日落 {sunset}
+      风 {wind:.0f} km/h（{wb} 级）· 阵风 {gust:.0f} km/h · 降水概率 {pop:.0f}% · 日出 {sunrise} · 日落 {sunset}
     </div>
     {tips}
+    {ty}
   </div>
   <div style="padding:10px 24px 20px">
     <div style="font-size:12px;color:#98a2b3;letter-spacing:.08em;margin:14px 0 4px">未来几天</div>
@@ -158,12 +242,13 @@ def build_html(d, now):
         tmax=dl["temperature_2m_max"][0], tmin=dl["temperature_2m_min"][0],
         feels=cur["apparent_temperature"], hum=cur["relative_humidity_2m"],
         wind=cur["wind_speed_10m"], pop=dl["precipitation_probability_max"][0] or 0,
+        wb=beaufort(cur["wind_speed_10m"]), gust=cur.get("wind_gusts_10m") or 0,
         sunrise=dl["sunrise"][0][11:16], sunset=dl["sunset"][0][11:16],
-        tips=tip_html, rows="".join(rows),
+        tips=tip_html, ty=ty_html, rows="".join(rows),
     )
 
 
-def build_text(d, now):
+def build_text(d, now, ty=None):
     cur = d["current"]
     dl = d["daily"]
     lines = [
@@ -171,6 +256,8 @@ def build_text(d, now):
         "现在 {:.0f}° {}，体感 {:.0f}°，湿度 {:.0f}%".format(
             cur["temperature_2m"], WMO.get(cur["weather_code"], ""), cur["apparent_temperature"],
             cur["relative_humidity_2m"]),
+        "风 {:.0f} km/h（{} 级），阵风 {:.0f} km/h".format(
+            cur["wind_speed_10m"], beaufort(cur["wind_speed_10m"]), cur.get("wind_gusts_10m") or 0),
         "今天 {:.0f}° / {:.0f}°，降水概率 {:.0f}%".format(
             dl["temperature_2m_max"][0], dl["temperature_2m_min"][0],
             dl["precipitation_probability_max"][0] or 0),
@@ -186,7 +273,15 @@ def build_text(d, now):
     tips = advise(d, 0)
     if tips:
         lines += [""] + tips
-    lines += ["", "数据 Open-Meteo · 燕绛的博客 https://54786569358.github.io/"]
+    if ty:
+        lines += ["", "台风 {} {}（{} 号）{}，中心 {:.1f}°N {:.1f}°E，距石狮约 {:.0f} km，气压 {} hPa，风速 {} m/s".format(
+            ty["name"], ty["name_en"], ty["num"], ty["level"],
+            ty["lat"], ty["lon"], ty["dist"], ty["pressure"], ty["wind"])]
+        if ty["dist"] <= 1000:
+            lines.append("⚠ 台风已进入 1000 km 范围，注意当地预警信号。")
+    else:
+        lines += ["", "台风动向：西北太平洋和南海当前无活跃热带气旋。"]
+    lines += ["", "数据 Open-Meteo / 中国气象局台风网 · 燕绛的博客 https://54786569358.github.io/"]
     return "\n".join(lines)
 
 
@@ -198,11 +293,12 @@ def main():
 
     now = datetime.now(TZ)
     data = fetch()
+    ty = fetch_typhoon()
     subject = "{} {} 天气 {:.0f}° {}".format(
         CITY, now.strftime("%m-%d"), data["current"]["temperature_2m"],
         WMO.get(data["current"]["weather_code"], ""))
-    html = build_html(data, now)
-    text = build_text(data, now)
+    html = build_html(data, now, ty)
+    text = build_text(data, now, ty)
 
     print(subject)
     print(text)

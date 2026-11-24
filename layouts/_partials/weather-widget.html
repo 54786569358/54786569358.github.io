@@ -21,6 +21,28 @@
   {{- if eq $mode "full" }}
   <div class="wx-hours"></div>
   <div class="wx-hours-lbl"></div>
-  <div class="wx-note">数据来自 Open-Meteo（免密钥的开源气象服务），每 10 分钟刷新一次；时间均为北京时间（UTC+8）。</div>
+  <div class="wx-alerts"></div>
+
+  <div class="wx-map">
+    <div class="wx-map-tabs">
+      <button type="button" class="on" data-overlay="wind" data-product="ecmwf">风向与流场</button>
+      <button type="button" data-overlay="satellite" data-product="satellite">卫星云图</button>
+      <button type="button" data-overlay="clouds" data-product="ecmwf">云量</button>
+      <button type="button" data-overlay="rain" data-product="ecmwf">降雨雷达</button>
+      <button type="button" data-overlay="temp" data-product="ecmwf">气温</button>
+      <button type="button" data-overlay="waves" data-product="gfs">海浪</button>
+    </div>
+    <iframe id="wxWindy" loading="lazy" referrerpolicy="no-referrer"
+      src="https://embed.windy.com/embed2.html?lat=24.72&lon=118.65&detailLat=24.72&detailLon=118.65&width=900&height=420&zoom=6&level=surface&overlay=wind&product=ecmwf&menu=&message=&marker=&calendar=now&pressure=&type=map&location=coordinates&detail=&metricWind=default&metricTemp=default&radarRange=-1&lang=zh"
+      title="风场与云图"></iframe>
+    <div class="wx-map-note">地图来自 <a href="https://www.windy.com/" target="_blank" rel="noopener">Windy</a>（ECMWF / GFS 模式）。点上方按钮切换图层：风场箭头可拖动时间轴看未来几天的走向，卫星云图是逐小时动画。</div>
+  </div>
+
+  <div class="wx-ty" id="wxTyphoon">
+    <h4>台风动向</h4>
+    <div class="wx-ty-body"><span class="wx-ty-none">正在查询西北太平洋台风…</span></div>
+  </div>
+
+  <div class="wx-note">数据来自 Open-Meteo 与中国气象局台风网（均为公开接口）；每 10 分钟刷新一次，时间均为北京时间（UTC+8）。</div>
   {{- end }}
 </div>
