@@ -173,6 +173,7 @@
         renderBoard(box, d, c, dl, idx);
         renderLayerValues(box, d, c, dl);
         renderHours(box, d, idx);
+        renderTips(box, d, c, dl, idx);
         loadMarine(box);
       }
     }).catch(function () {
@@ -230,6 +231,7 @@
     out += cell('阵风', num(c.wind_gusts_10m), 'km/h');
     out += cell('能见度', vis == null ? '--' : (vis / 1000).toFixed(1), 'km');
     out += cell('降水量', zero(c.precipitation), 'mm');
+    out += cell('云量', num(c.cloud_cover), '%');
     if (dl.sunrise && dl.sunrise[0]) {
       out += cell('日出', dl.sunrise[0].slice(11, 16), '');
       out += cell('日落', dl.sunset[0].slice(11, 16), '');
@@ -267,6 +269,88 @@
     }
     if (rng && times.length) {
       rng.textContent = times[0].slice(11, 13) + ':00 起 · ' + num(lo) + '°～' + num(hi) + '°';
+    }
+  }
+
+  /* ---------- 今日建议（规则引擎） ---------- */
+
+  function tip(kind, ico, title, body) {
+    return '<div class="wx-tip ' + kind + '"><span class="wx-tip-ico">' + ico + '</span>' +
+      '<div><div class="wx-tip-t">' + title + '</div><div class="wx-tip-b">' + body + '</div></div></div>';
+  }
+
+  function renderTips(box, d, c, dl, idx) {
+    var host = box.querySelector('#wxTips');
+    var sum = box.querySelector('#wxTipsSum');
+    var score = box.querySelector('#wxScore');
+    if (!host) { return; }
+    var hr = d.hourly || {};
+    var tmax = dl.temperature_2m_max ? dl.temperature_2m_max[0] : null;
+    var tmin = dl.temperature_2m_min ? dl.temperature_2m_min[0] : null;
+    var pop = dl.precipitation_probability_max ? zero(dl.precipitation_probability_max[0]) : 0;
+    var uv = dl.uv_index_max ? zero(dl.uv_index_max[0]) : 0;
+    var gust = zero(c.wind_gusts_10m);
+    var code = zero(c.weather_code);
+    var cloud = zero(c.cloud_cover);
+    var hum = zero(c.relative_humidity_2m);
+    var vis = hr.visibility && hr.visibility[idx] != null ? hr.visibility[idx] : null;
+    var raining = RAIN.indexOf(code) >= 0;
+    var out = [];
+
+    /* 穿衣 */
+    var ref = tmax == null ? zero(c.temperature_2m) : tmax;
+    if (ref >= 32) { out.push(tip('warn', '👕', '穿薄一点', '最高 ' + num(ref) + '°，短袖短裤最舒服，户外记得补水和遮阳。')); }
+    else if (ref >= 26) { out.push(tip('good', '👕', '短袖就够', '最高 ' + num(ref) + '°，体感偏暖，早晚可以带件薄外套。')); }
+    else if (ref >= 20) { out.push(tip('good', '🧥', '薄外套或长袖', '最高 ' + num(ref) + '°，白天舒适，早晚微凉。')); }
+    else if (ref >= 13) { out.push(tip('info', '🧥', '要加件外套', '最高 ' + num(ref) + '°，最低 ' + num(tmin) + '°，穿件夹克正好。')); }
+    else if (ref >= 6) { out.push(tip('warn', '🧥', '穿厚一点', '最高只有 ' + num(ref) + '°，大衣或加绒外套。')); }
+    else { out.push(tip('bad', '🧣', '注意保暖', '最高 ' + num(ref) + '°，羽绒服、围巾手套都安排上。')); }
+
+    /* 带伞 */
+    if (pop >= 60 || raining) { out.push(tip('bad', '☂️', '出门带伞', '降水概率 ' + num(pop) + '%，' + text(code) + '，伞别落下。')); }
+    else if (pop >= 30) { out.push(tip('warn', '☂️', '建议带把伞', '降水概率 ' + num(pop) + '%，不怕一万只怕万一。')); }
+    else { out.push(tip('good', '☀️', '不用带伞', '降水概率只有 ' + num(pop) + '%，放心出门。')); }
+
+    /* 户外运动 */
+    var t = zero(c.temperature_2m);
+    if (!raining && pop < 30 && gust < 40 && t >= 6 && t <= 28) {
+      out.push(tip('good', '🏃', '适合户外运动', '温度 ' + num(t) + '°、风 ' + num(c.wind_speed_10m) + ' km/h，跑步骑行都合适。'));
+    } else if (!raining && pop < 60 && gust < 55) {
+      out.push(tip('info', '🚶', '散步可以，别太剧烈', '风 ' + num(gust) + ' km/h 阵风，气温 ' + num(t) + '°，以轻量活动为主。'));
+    } else {
+      out.push(tip('warn', '🏠', '改室内运动', '今天' + (raining ? '有降水' : '风偏大') + '，建议改成室内或健身房。'));
+    }
+
+    /* 晾晒 */
+    if (!raining && pop < 20 && cloud < 65 && gust < 45) { out.push(tip('good', '🧺', '适合晾晒', '云量 ' + num(cloud) + '%、降水概率低，被子衣服放心晒。')); }
+    else if (!raining && pop < 45) { out.push(tip('info', '🧺', '晾晒看运气', '云量 ' + num(cloud) + '%，建议晾阳台并留意天气变化。')); }
+    else { out.push(tip('bad', '🧺', '别晒了', '降水概率 ' + num(pop) + '%，衣服改室内晾或用烘干机。')); }
+
+    /* 防晒 */
+    if (uv >= 8) { out.push(tip('bad', '🕶️', '紫外线很强', 'UV ' + num(uv) + '，10:00–16:00 尽量避开直晒，帽子墨镜防晒霜。')); }
+    else if (uv >= 6) { out.push(tip('warn', '🕶️', '注意防晒', 'UV ' + num(uv) + '，长时间在户外要涂防晒。')); }
+
+    /* 风与能见度 */
+    if (gust >= 50) { out.push(tip('bad', '💨', '风很大', '阵风 ' + num(gust) + ' km/h（' + beaufort(gust) + ' 级），骑车、晾衣、放无人机都要小心。')); }
+    if (vis != null && vis < 2000) { out.push(tip('bad', '🌫️', '能见度低', '能见度约 ' + (vis / 1000).toFixed(1) + ' km，开车开灯减速。')); }
+    if (hum <= 35 && t >= 20) { out.push(tip('info', '💧', '空气偏干', '湿度 ' + num(hum) + '%，多喝水，室内可以开加湿器。')); }
+    if (hum >= 90 && t >= 24) { out.push(tip('info', '💦', '又闷又潮', '湿度 ' + num(hum) + '%、' + num(t) + '°，注意通风和除湿。')); }
+
+    host.innerHTML = out.join('');
+
+    /* 适合出门指数 */
+    var s = 100;
+    s -= Math.min(40, pop * 0.4);
+    if (raining) { s -= 22; }
+    if (gust >= 50) { s -= 18; } else if (gust >= 38) { s -= 10; }
+    if (uv >= 8) { s -= 8; }
+    if (t >= 35 || t <= 2) { s -= 20; } else if (t >= 31 || t <= 8) { s -= 10; }
+    if (vis != null && vis < 2000) { s -= 15; }
+    s = Math.max(0, Math.min(100, Math.round(s)));
+    var word = s >= 80 ? '很适合出门' : (s >= 60 ? '出门没问题' : (s >= 40 ? '一般，能室内就室内' : '不太适合出门'));
+    if (score) { score.textContent = '适合出门 ' + s + '/100'; }
+    if (sum) {
+      sum.textContent = '今天' + text(code) + '，' + num(tmin) + '°～' + num(tmax) + '°，降水概率 ' + num(pop) + '%，阵风 ' + num(gust) + ' km/h —— ' + word + '。';
     }
   }
 
