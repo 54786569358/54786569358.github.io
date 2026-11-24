@@ -7,9 +7,10 @@
 (function () {
   'use strict';
 
-  var REPO = '54786569358/54786569358.github.io';
+  var OWNER = '54786569358';
+  var REPO_NAME = '54786569358.github.io';
   var BRANCH = 'main';
-  var API = 'https://api.github.com/repos/' + REPO + '/contents/';
+  var API_ROOT = 'https://api.github.com/repos/' + OWNER + '/' + REPO_NAME + '/contents/';
   var TOKEN_KEY = 'blog_gh_token';
 
   var m = /^\/posts\/([^\/]+)\/?$/.exec(location.pathname);
@@ -17,7 +18,7 @@
   var slug = m[1];
 
   function token() {
-    try { return localStorage.getItem(TOKEN_KEY) || ''; } catch (e) { return ''; }
+    try { return (localStorage.getItem(TOKEN_KEY) || '').trim(); } catch (e) { return ''; }
   }
   function setToken(t) {
     try { localStorage.setItem(TOKEN_KEY, t); } catch (e) {}
@@ -29,13 +30,42 @@
   }
   function b64encode(str) { return btoa(unescape(encodeURIComponent(str))); }
 
-  function api(path, opts) {
+  /* path is relative to <repo>/contents/, e.g. "content/posts/foo.md" */
+  function api(path, opts, tries) {
+    tries = tries == null ? 2 : tries;
     opts = opts || {};
     opts.headers = Object.assign({
       'Accept': 'application/vnd.github+json',
       'Authorization': 'Bearer ' + token()
     }, opts.headers || {});
-    return fetch('https://api.github.com/repos/' + REPO + '/' + path, opts);
+    var url = API_ROOT + path;
+    return fetch(url, opts).catch(function (err) {
+      if (tries <= 0) {
+        err.requestUrl = url;
+        throw err;
+      }
+      return new Promise(function (r) { setTimeout(r, 700); }).then(function () { return api(path, opts, tries - 1); });
+    });
+  }
+
+  function describe(err) {
+    if (!err) { return '未知错误'; }
+    if (err.status) { return 'HTTP ' + err.status + (err.detail ? '：' + err.detail : ''); }
+    return (err.message || String(err)) + (err.requestUrl ? '\n请求地址：' + err.requestUrl : '');
+  }
+
+  function jsonOrThrow(r) {
+    return r.text().then(function (t) {
+      var j = null;
+      try { j = t ? JSON.parse(t) : null; } catch (e) {}
+      if (!r.ok) {
+        var e = new Error('HTTP ' + r.status);
+        e.status = r.status;
+        e.detail = (j && j.message) || t.slice(0, 140);
+        throw e;
+      }
+      return j;
+    });
   }
 
   /* ---------- pill ---------- */
@@ -112,11 +142,7 @@
     return new Promise(function (resolve) {
       var btnOk = mkBtn('\u8fde\u63a5', true);
       var btnNo = mkBtn('\u53d6\u6d88', false);
-      var ui = shell({
-        compact: true,
-        title: '\u8fde\u63a5 GitHub\uff08\u53ea\u9700\u4e00\u6b21\uff09',
-        buttons: [btnOk, btnNo]
-      });
+      var ui = shell({ compact: true, title: '\u8fde\u63a5 GitHub\uff08\u53ea\u9700\u4e00\u6b21\uff09', buttons: [btnOk, btnNo] });
       btnNo.addEventListener('click', function () { ui.close(); });
       ui.note.textContent = '';
 
@@ -145,24 +171,19 @@
         if (!v) { input.focus(); return; }
         btnOk.disabled = true;
         ui.note.textContent = '\u9a8c\u8bc1\u4ee4\u724c\u2026';
-        fetch('https://api.github.com/user', { headers: { 'Authorization': 'Bearer ' + v } })
-          .then(function (r) {
-            if (!r.ok) { throw new Error('HTTP ' + r.status + '\uff08\u4ee4\u724c\u65e0\u6548\u6216\u65e0\u6743\u9650\uff09'); }
-            return r.json();
-          })
+        fetch('https://api.github.com/user', { headers: { 'Accept': 'application/vnd.github+json', 'Authorization': 'Bearer ' + v } })
+          .then(jsonOrThrow)
           .then(function (u) {
             setToken(v);
-            ui.note.textContent = '\u5df2\u8fde\u63a5 ' + u.login;
+            ui.note.textContent = '\u5df2\u8fde\u63a5 ' + (u && u.login);
             setTimeout(function () { ui.close(); resolve(true); }, 350);
           })
           .catch(function (err) {
             btnOk.disabled = false;
-            ui.note.textContent = '\u5931\u8d25\uff1a' + err.message;
+            ui.note.textContent = '\u5931\u8d25\uff1a' + describe(err);
           });
       });
-      input.addEventListener('keydown', function (e) {
-        if (e.key === 'Enter') { btnOk.click(); }
-      });
+      input.addEventListener('keydown', function (e) { if (e.key === 'Enter') { btnOk.click(); } });
     });
   }
 
@@ -196,26 +217,27 @@
   /* ---------- flow ---------- */
   function start() {
     pill.textContent = '\u6b63\u5728\u8bfb\u53d6\u2026';
-    ensureToken().then(function () {
-      return api('content/posts?ref=' + BRANCH)
-        .then(function (r) { return r.json(); })
-        .then(function (items) {
-          if (!Array.isArray(items)) { throw new Error('\u8bfb\u53d6\u6587\u7ae0\u5217\u8868\u5931\u8d25'); }
-          var hit = null;
-          items.forEach(function (it) {
-            if (!/\.md$/.test(it.name)) { return; }
-            var base = it.name.replace(/\.md$/, '').replace(/^\d{4}-\d{2}-\d{2}-/, '');
-            if (base === slug) { hit = it; }
-          });
-          if (!hit) { throw new Error('\u6ca1\u627e\u5230\u5bf9\u5e94\u7684 .md \u6587\u4ef6'); }
-          return api(hit.path + '?ref=' + BRANCH)
-            .then(function (r) { return r.json(); })
-            .then(function (f) { return { path: hit.path, sha: f.sha, text: b64decode(f.content) }; });
+    ensureToken()
+      .then(function () { return api('content/posts?ref=' + BRANCH); })
+      .then(jsonOrThrow)
+      .then(function (items) {
+        if (!Array.isArray(items)) { throw new Error('\u6587\u7ae0\u5217\u8868\u683c\u5f0f\u4e0d\u5bf9'); }
+        var hit = null;
+        items.forEach(function (it) {
+          if (!/\.md$/.test(it.name)) { return; }
+          var base = it.name.replace(/\.md$/, '').replace(/^\d{4}-\d{2}-\d{2}-/, '');
+          if (base === slug) { hit = it; }
         });
-    }).then(openEditor).catch(function (err) {
-      pill.textContent = '\u270e \u7f16\u8f91\u672c\u6587';
-      alert('\u6253\u5f00\u5931\u8d25\uff1a' + err.message);
-    });
+        if (!hit) { throw new Error('\u6ca1\u627e\u5230\u5bf9\u5e94\u7684 .md \u6587\u4ef6\uff08' + slug + '\uff09'); }
+        return api(hit.path + '?ref=' + BRANCH).then(jsonOrThrow).then(function (f) {
+          return { path: hit.path, sha: f.sha, text: b64decode(f.content) };
+        });
+      })
+      .then(openEditor)
+      .catch(function (err) {
+        pill.textContent = '\u270e \u7f16\u8f91\u672c\u6587';
+        alert('\u6253\u5f00\u5931\u8d25\uff1a' + describe(err));
+      });
   }
 
   function openEditor(file) {
@@ -265,15 +287,12 @@
             sha: file.sha,
             branch: BRANCH
           })
-        }).then(function (r) {
-          if (!r.ok) {
-            return r.json().then(function (j) { throw new Error(j.message || ('HTTP ' + r.status)); });
-          }
+        }).then(jsonOrThrow).then(function () {
           ui.note.textContent = '\u5df2\u4fdd\u5b58\uff0c\u7ea6 40 \u79d2\u540e\u751f\u6548\uff08Ctrl+F5 \u5237\u65b0\u770b\uff09';
           btnSave.textContent = '\u5df2\u4fdd\u5b58';
         }).catch(function (err) {
           btnSave.disabled = false;
-          ui.note.textContent = '\u4fdd\u5b58\u5931\u8d25\uff1a' + err.message;
+          ui.note.textContent = '\u4fdd\u5b58\u5931\u8d25\uff1a' + describe(err);
         });
       });
     }).catch(function () {
