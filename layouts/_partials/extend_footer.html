@@ -122,6 +122,71 @@ document.addEventListener('DOMContentLoaded', function () {
 </script>
 {{- end }}
 
+{{- /* music player shortcode */ -}}
+<script>
+(function () {
+  document.querySelectorAll('.player').forEach(function (box) {
+    var lis = box.querySelectorAll('.player-list li');
+    var tracks = [];
+    Array.prototype.forEach.call(lis, function (li) {
+      tracks.push({ name: li.textContent.trim(), url: li.getAttribute('data-url') });
+    });
+    if (!tracks.length) return;
+    var audio = new Audio();
+    audio.preload = 'none';
+    var i = 0, playing = false;
+    var btn = box.querySelector('.player-btn');
+    var nameEl = box.querySelector('.player-name');
+    var tipEl = box.querySelector('.player-tip');
+    function load(n) {
+      i = (n + tracks.length) % tracks.length;
+      audio.src = tracks[i].url;
+      if (nameEl) nameEl.textContent = tracks[i].name;
+      if (tipEl) tipEl.textContent = (i + 1) + ' / ' + tracks.length + ' · 点按切换';
+    }
+    function play() {
+      audio.play().then(function () { playing = true; if (btn) btn.textContent = '❚❚'; })
+        .catch(function () { if (tipEl) tipEl.textContent = '播放失败：音频直链可能不允许跨域'; });
+    }
+    function pause() { audio.pause(); playing = false; if (btn) btn.textContent = '▶'; }
+    audio.addEventListener('ended', function () { load(i + 1); play(); });
+    if (btn) btn.addEventListener('click', function () { playing ? pause() : play(); });
+    load(0);
+  });
+})();
+</script>
+
+{{- /* weather shortcode (Open-Meteo, keyless) */ -}}
+<script>
+(function () {
+  var WMO = { 0: '晴', 1: '大致晴朗', 2: '多云', 3: '阴', 45: '雾', 48: '雾凇', 51: '小毛毛雨', 53: '毛毛雨', 55: '大毛毛雨',
+              61: '小雨', 63: '中雨', 65: '大雨', 66: '冻雨', 67: '强冻雨', 71: '小雪', 73: '中雪', 75: '大雪', 77: '雪粒',
+              80: '阵雨', 81: '强阵雨', 82: '暴雨', 85: '阵雪', 86: '强阵雪', 95: '雷阵雨', 96: '雷阵雨伴冰雹', 99: '强雷暴伴冰雹' };
+  document.querySelectorAll('.weather-card').forEach(function (card) {
+    var city = card.getAttribute('data-city') || 'Tianjin';
+    var out = card.querySelector('.weather-now');
+    if (!out) return;
+    fetch('https://geocoding-api.open-meteo.com/v1/search?count=1&language=zh&name=' + encodeURIComponent(city))
+      .then(function (r) { return r.json(); })
+      .then(function (g) {
+        var hit = (g.results || [])[0];
+        if (!hit) throw new Error('city not found');
+        var u = 'https://api.open-meteo.com/v1/forecast?latitude=' + hit.latitude + '&longitude=' + hit.longitude +
+                '&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&timezone=auto';
+        return fetch(u).then(function (r) { return r.json(); }).then(function (d) { return { hit: hit, d: d }; });
+      })
+      .then(function (o) {
+        var c = o.d.current || {};
+        var t = (c.weather_code != null && WMO[c.weather_code]) ? WMO[c.weather_code] : '天气';
+        out.textContent = t + ' ' + Math.round(c.temperature_2m) + '°C · 湿度 ' + c.relative_humidity_2m + '% · 风 ' + c.wind_speed_10m + ' km/h';
+        var cityEl = card.querySelector('.weather-city');
+        if (cityEl && o.hit.name) cityEl.textContent = o.hit.name;
+      })
+      .catch(function () { out.textContent = '取不到天气'; });
+  });
+})();
+</script>
+
 {{- /* service worker */ -}}
 <script>
 if ('serviceWorker' in navigator) {

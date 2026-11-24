@@ -72,6 +72,22 @@ kbd { background: rgba(127,127,127,.18); border: 1px solid rgba(127,127,127,.35)
 .statline .random-post { display: inline-flex; align-items: center; gap: .3rem; }
 .statline-sep { opacity: .35; }
 
+/* ---------- music player ---------- */
+.player { display: flex; align-items: center; gap: .9rem; padding: .8rem 1rem; margin: 1.3rem 0;
+          border: 1px solid rgba(127,127,127,.28); border-radius: 10px; background: rgba(127,127,127,.06); }
+.player-btn { flex: 0 0 auto; width: 42px; height: 42px; border-radius: 50%; border: 0; cursor: pointer;
+              background: #4b8bf5; color: #fff; font-size: 1rem; line-height: 1; }
+.player-btn:hover { filter: brightness(1.12); }
+.player-name { font-weight: 600; }
+.player-tip { font-size: .8em; opacity: .6; margin-top: .15rem; }
+
+/* ---------- weather card ---------- */
+.weather-card { display: flex; align-items: center; gap: .7rem; flex-wrap: wrap; padding: .7rem .95rem;
+                margin: 1.2rem 0; border-radius: 10px; border: 1px solid rgba(127,127,127,.28);
+                background: linear-gradient(135deg, rgba(75,139,245,.14), rgba(139,92,246,.14)); font-size: .95em; }
+.weather-city { font-weight: 700; }
+.weather-now { opacity: .85; }
+
 /* ---------- pwa standalone tweak ---------- */
 @media (display-mode: standalone) { .top-link { display: none; } }
 </style>

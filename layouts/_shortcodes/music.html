@@ -1,0 +1,25 @@
+{{- /* Playlist player. One track per line:  曲名 | 音频直链
+   {{< music >}}
+   晴天 | https://example.com/qingtian.mp3
+   夜曲 | https://example.com/yequ.mp3
+   {{< /music >}}                                                       */ -}}
+{{- $tracks := slice -}}
+{{- range (split (trim .Inner "\n") "\n") }}
+  {{- $line := trim . " \t" }}
+  {{- if and $line (in $line "|") }}
+    {{- $p := split $line "|" }}
+    {{- $tracks = $tracks | append (dict "name" (trim (index $p 0) " ") "url" (trim (index $p 1) " ")) }}
+  {{- end }}
+{{- end }}
+<div class="player">
+  <button type="button" class="player-btn" aria-label="play">▶</button>
+  <div class="player-info">
+    <div class="player-name">{{ if $tracks }}{{ (index $tracks 0).name }}{{ else }}还没有曲子{{ end }}</div>
+    <div class="player-tip">{{ if $tracks }}共 {{ len $tracks }} 首 · 点按切换{{ else }}在 shortcode 里按「曲名 | 直链」每行一首{{ end }}</div>
+  </div>
+  <ul class="player-list" hidden>
+    {{- range $tracks }}
+    <li data-url="{{ .url }}">{{ .name }}</li>
+    {{- end }}
+  </ul>
+</div>

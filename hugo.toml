@@ -126,7 +126,7 @@ enableGitInfo = true
   [markup.highlight]
     noClasses = false
     codeFences = true
-    guessSyntax = true
+    guessSyntax = false
     lineNos = false
     anchorLineNos = false
   [markup.tableOfContents]

@@ -1,0 +1,13 @@
+{{- $id := .Get 0 -}}
+{{- $t := .Get 1 -}}
+<div style="position:relative;width:100%;padding-top:56.25%;margin:1.4rem 0;border-radius:8px;overflow:hidden;background:#000">
+  <iframe src="https://www.youtube.com/embed/{{ $id }}"
+          title="{{ if $t }}{{ $t }}{{ else }}YouTube video{{ end }}"
+          style="position:absolute;inset:0;width:100%;height:100%;border:0"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowfullscreen
+          loading="lazy"></iframe>
+</div>
+{{- with $t }}
+<p style="text-align:center;font-size:.85em;opacity:.7;margin-top:-1rem">{{ . }}</p>
+{{- end }}

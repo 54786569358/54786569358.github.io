@@ -1,0 +1,6 @@
+{{- /* 天气小卡：{{< weather "天津" >}}  (Open-Meteo，无需 API key) */ -}}
+{{- $city := .Get 0 | default "天津" -}}
+<div class="weather-card" data-city="{{ $city }}">
+  <span class="weather-city">{{ $city }}</span>
+  <span class="weather-now">加载中…</span>
+</div>
