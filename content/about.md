@@ -22,7 +22,6 @@ comments: false
 ## 这里有什么
 
 - [文章](/posts/) —— 正经写的东西
-- [微语](/moments/) —— 一两句话的碎片
 - [相册](/gallery/) —— 随手拍
 - [友链](/links/) —— 常去的地方
 - [标签](/tags/) · [归档](/archives/) · [搜索](/search/)

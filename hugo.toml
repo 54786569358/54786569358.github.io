@@ -85,11 +85,6 @@ enableGitInfo = true
     url = "/posts/"
     weight = 10
   [[menu.main]]
-    identifier = "moments"
-    name = "微语"
-    url = "/moments/"
-    weight = 20
-  [[menu.main]]
     identifier = "weather"
     name = "天气"
     url = "/weather/"

@@ -1,12 +1,9 @@
-﻿{{- /* in-place post editing: pill + on-page rich editor (static/js/inplace-edit.js) */}}
+{{- /* in-place post editing: pill + on-page rich editor (static/js/inplace-edit.js) */}}
 <script src="/js/inplace-edit.js?v=8" defer></script>
 {{- /* ---------- footer: stat line + enhancements ---------- */ -}}
 {{- $postCount := len (where site.RegularPages "Section" "posts") -}}
-{{- $moments := len (where site.RegularPages "Section" "moments") -}}
 <div class="statline" id="statline">
   <span>{{ $postCount }} 篇文章</span>
-  <span class="statline-sep">·</span>
-  <span>{{ $moments }} 条微语</span>
   <span class="statline-sep">·</span>
   <a href="/archives/" title="全部文章按时间排列">归档</a>
   <span class="statline-sep">·</span>

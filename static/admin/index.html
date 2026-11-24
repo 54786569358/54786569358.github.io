@@ -237,6 +237,7 @@
   var REPO = '54786569358/54786569358.github.io';
   var BRANCH = 'main';
   var API = 'https://api.github.com/repos/' + REPO + '/contents/';
+  var API_REPO = '/repos/' + REPO;
   var KEY_TOKEN = 'blog_gh_token';
   var KEY_DRAFT = 'blog_draft';
   var editingSha = null;
@@ -367,7 +368,7 @@
       openFile(value.replace(/^content\//, ''));
       return;
     }
-    gh('/contents/content/posts?ref=' + BRANCH).then(function (r) { return r.json(); }).then(function (items) {
+    gh(API_REPO + '/contents/content/posts?ref=' + BRANCH).then(function (r) { return r.json(); }).then(function (items) {
       items = (items || []).filter(function (i) { return /\.md$/.test(i.name); });
       var hit = null;
       items.forEach(function (i) {
@@ -381,7 +382,7 @@
   function loadList() {
     var box = $('postList');
     box.innerHTML = '<p class="hint">加载中…</p>';
-    gh('/contents/content/posts?ref=' + BRANCH).then(function (r) {
+    gh(API_REPO + '/contents/content/posts?ref=' + BRANCH).then(function (r) {
       if (!r.ok) throw new Error('list failed');
       return r.json();
     }).then(function (items) {
@@ -400,7 +401,7 @@
   }
 
   function openFile(path) {
-    gh('/contents/' + path + '?ref=' + BRANCH).then(function (r) { return r.json(); }).then(function (f) {
+    gh(API_REPO + '/contents/' + path + '?ref=' + BRANCH).then(function (r) { return r.json(); }).then(function (f) {
       var text = b64decode(f.content);
       var m = text.match(/^---\n([\s\S]*?)\n---\n?/);
       var meta = {}, body = text;
@@ -472,7 +473,7 @@
     };
     if (editingSha) payload.sha = editingSha;
 
-    gh('/contents/' + path, { method: 'PUT', body: payload }).then(function (r) {
+    gh(API_REPO + '/contents/' + path, { method: 'PUT', body: payload }).then(function (r) {
       return r.json().then(function (j) { return { ok: r.ok, status: r.status, j: j }; });
     }).then(function (res) {
       if (!res.ok) throw new Error((res.j && res.j.message) || ('HTTP ' + res.status));
