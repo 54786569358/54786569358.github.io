@@ -2,8 +2,9 @@ name: Daily weather mail
 
 on:
   schedule:
-    # 21:00 UTC = 05:00 次日 北京时间（Asia/Shanghai）
-    - cron: '0 21 * * *'
+    # 21:07 UTC = 05:07 次日 北京时间。刻意避开整点：
+    # GitHub 的定时任务在整点最拥挤，容易被延迟或直接跳过。
+    - cron: '7 21 * * *'
   workflow_dispatch:
     inputs:
       dry_run:

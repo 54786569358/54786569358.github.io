@@ -1,0 +1,49 @@
+name: Weather mail backup
+
+# 兜底：主任务（weather-email.yml，21:07 UTC）如果被 GitHub 跳过或跑失败，
+# 这个任务在半小时后再试一次；主任务当天成功了就什么都不做，避免重复发信。
+
+on:
+  schedule:
+    - cron: '37 21 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check whether the main run already succeeded today
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          today=$(date -u +%Y-%m-%d)
+          ok=$(gh api "repos/${{ github.repository }}/actions/workflows/weather-email.yml/runs?per_page=30" \
+                 --jq "[.workflow_runs[] | select(.conclusion==\"success\" and .event==\"schedule\" and (.created_at|startswith(\"$today\")))] | length")
+          echo "successful scheduled runs today: $ok"
+          if [ "$ok" != "0" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.check.outputs.skip == 'false'
+
+      - uses: actions/setup-python@v5
+        if: steps.check.outputs.skip == 'false'
+        with:
+          python-version: '3.12'
+
+      - name: Send Shishi weather (backup)
+        if: steps.check.outputs.skip == 'false'
+        env:
+          QQ_USER: ${{ secrets.QQ_USER }}
+          QQ_PASS: ${{ secrets.QQ_PASS }}
+          MAIL_TO: ${{ secrets.MAIL_TO }}
+          DRY_RUN: '0'
+        run: python scripts/weather_mail.py
