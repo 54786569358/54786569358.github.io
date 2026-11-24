@@ -27,14 +27,31 @@
   </div>
   {{- end }}
 
-  <div class="wx-now">
-    <span class="wx-ico">·</span>
-    <span class="wx-temp">--</span>
-    <span class="wx-desc">正在获取…</span>
-  </div>
-  <div class="wx-meta"></div>
-  <div class="wx-days"></div>
   {{- if eq $mode "full" }}
+  <div class="wx-hero">
+    <div class="wx-hero-main">
+      <div class="wx-now">
+        <span class="wx-ico">·</span>
+        <span class="wx-temp">--</span>
+        <span class="wx-desc">正在获取…</span>
+      </div>
+      <div class="wx-meta"></div>
+    </div>
+    <div class="wx-rings">
+      <div class="wx-ring" data-ring="hum"><div class="wx-ring-arc" style="--p:0"><b>--</b></div><span>湿度</span></div>
+      <div class="wx-ring" data-ring="cloud"><div class="wx-ring-arc" style="--p:0"><b>--</b></div><span>云量</span></div>
+      <div class="wx-ring" data-ring="pop"><div class="wx-ring-arc" style="--p:0"><b>--</b></div><span>降水概率</span></div>
+      <div class="wx-ring" data-ring="uv"><div class="wx-ring-arc" style="--p:0"><b>--</b></div><span>紫外线</span></div>
+    </div>
+  </div>
+
+  <div class="wx-board">
+    <div class="wx-board-head">实时数据</div>
+    <div class="wx-board-grid" id="wxBoard"></div>
+  </div>
+
+  <div class="wx-days"></div>
+
   <div class="wx-hourwrap">
     <div class="wx-hourhead"><span class="wx-hourtitle">未来 12 小时</span><span class="wx-hourrange"></span></div>
     <div class="wx-hours"></div>
@@ -42,19 +59,33 @@
   </div>
   <div class="wx-alerts"></div>
 
+  <div class="wx-layerhead">图层与云图</div>
+  <div class="wx-layers" id="wxLayers">
+    <button type="button" class="wx-layer on" data-overlay="wind" data-product="ecmwf">
+      <span class="wx-layer-ico">◉</span><span class="wx-layer-name">风向与流场</span><span class="wx-layer-val">--</span>
+    </button>
+    <button type="button" class="wx-layer" data-overlay="satellite" data-product="satellite">
+      <span class="wx-layer-ico">◍</span><span class="wx-layer-name">卫星云图</span><span class="wx-layer-val">逐小时动画</span>
+    </button>
+    <button type="button" class="wx-layer" data-overlay="clouds" data-product="ecmwf">
+      <span class="wx-layer-ico">☁</span><span class="wx-layer-name">云量</span><span class="wx-layer-val">--</span>
+    </button>
+    <button type="button" class="wx-layer" data-overlay="rain" data-product="ecmwf">
+      <span class="wx-layer-ico">☂</span><span class="wx-layer-name">降雨雷达</span><span class="wx-layer-val">--</span>
+    </button>
+    <button type="button" class="wx-layer" data-overlay="temp" data-product="ecmwf">
+      <span class="wx-layer-ico">☀</span><span class="wx-layer-name">气温</span><span class="wx-layer-val">--</span>
+    </button>
+    <button type="button" class="wx-layer" data-overlay="waves" data-product="gfs">
+      <span class="wx-layer-ico">≋</span><span class="wx-layer-name">海浪</span><span class="wx-layer-val">--</span>
+    </button>
+  </div>
+
   <div class="wx-map">
-    <div class="wx-map-tabs">
-      <button type="button" class="on" data-overlay="wind" data-product="ecmwf">风向与流场</button>
-      <button type="button" data-overlay="satellite" data-product="satellite">卫星云图</button>
-      <button type="button" data-overlay="clouds" data-product="ecmwf">云量</button>
-      <button type="button" data-overlay="rain" data-product="ecmwf">降雨雷达</button>
-      <button type="button" data-overlay="temp" data-product="ecmwf">气温</button>
-      <button type="button" data-overlay="waves" data-product="gfs">海浪</button>
-    </div>
     <iframe id="wxWindy" loading="lazy" referrerpolicy="no-referrer"
       src="https://embed.windy.com/embed2.html?lat=24.72&lon=118.65&detailLat=24.72&detailLon=118.65&width=900&height=420&zoom=6&level=surface&overlay=wind&product=ecmwf&menu=&message=&marker=&calendar=now&pressure=&type=map&location=coordinates&detail=&metricWind=default&metricTemp=default&radarRange=-1&lang=zh"
       title="风场与云图"></iframe>
-    <div class="wx-map-note">地图来自 <a href="https://www.windy.com/" target="_blank" rel="noopener">Windy</a>（ECMWF / GFS 模式），默认以当前位置为中心。点上方按钮切换图层：风场箭头可拖动时间轴看未来几天的走向，卫星云图是逐小时动画。</div>
+    <div class="wx-map-note">地图来自 <a href="https://www.windy.com/" target="_blank" rel="noopener">Windy</a>（ECMWF / GFS 模式），默认以当前位置为中心。点上方任一图层卡片切换：风场箭头可拖动时间轴看未来几天的走向，卫星云图是逐小时动画。</div>
   </div>
 
   <div class="wx-ty" id="wxTyphoon">
@@ -62,6 +93,14 @@
     <div class="wx-ty-body"><span class="wx-ty-none">正在查询西北太平洋台风…</span></div>
   </div>
 
-  <div class="wx-note">数据来自 Open-Meteo 与中国气象局台风网（均为公开接口）；每 10 分钟刷新，时间为所选城市当地时间。</div>
+  <div class="wx-note">数据来自 Open-Meteo、Open-Meteo Marine 与中国气象局台风网（均为公开接口）；每 10 分钟刷新，时间为所选城市当地时间。</div>
+  {{- else }}
+  <div class="wx-now">
+    <span class="wx-ico">·</span>
+    <span class="wx-temp">--</span>
+    <span class="wx-desc">正在获取…</span>
+  </div>
+  <div class="wx-meta"></div>
+  <div class="wx-days"></div>
   {{- end }}
 </div>

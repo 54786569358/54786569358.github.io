@@ -128,11 +128,19 @@
     var lat = parseFloat(box.dataset.lat || cur.lat);
     var lon = parseFloat(box.dataset.lon || cur.lon);
     var url = 'https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lon +
-      '&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,wind_gusts_10m,precipitation' +
+      '&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,wind_gusts_10m,wind_direction_10m,precipitation,cloud_cover,pressure_msl' +
       '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,sunrise,sunset,uv_index_max,wind_gusts_10m_max' +
-      '&hourly=temperature_2m,precipitation_probability&timezone=auto&forecast_days=7';
+      '&hourly=temperature_2m,precipitation_probability,dew_point_2m,visibility,uv_index&timezone=auto&forecast_days=7';
     getJson(url).then(function (d) {
-      var c = d.current || {}, dl = d.daily || {};
+      var c = d.current || {}, dl = d.daily || {}, hr = d.hourly || {};
+      var off = (typeof d.utc_offset_seconds === 'number') ? d.utc_offset_seconds : 28800;
+      var nowKey = new Date(Date.now() + off * 1000).toISOString().slice(0, 13).replace('T', ' ');
+      var idx = 0;
+      if (hr.time) {
+        for (var i = 0; i < hr.time.length; i++) {
+          if (hr.time[i].replace('T', ' ').slice(0, 13) >= nowKey) { idx = i; break; }
+        }
+      }
       txt(box.querySelector('.wx-ico'), ico(c.weather_code));
       txt(box.querySelector('.wx-temp'), num(c.temperature_2m) + '°');
       txt(box.querySelector('.wx-desc'), text(c.weather_code));
@@ -159,37 +167,116 @@
         }).join('');
       }
 
-      if (full) { renderAlerts(box, d); }
-
-      if (full && d.hourly && d.hourly.time) {
-        var off = (typeof d.utc_offset_seconds === 'number') ? d.utc_offset_seconds : 28800;
-        var nowKey = new Date(Date.now() + off * 1000).toISOString().slice(0, 13).replace('T', ' ');
-        var idx = 0;
-        for (var i = 0; i < d.hourly.time.length; i++) {
-          if (d.hourly.time[i].replace('T', ' ').slice(0, 13) >= nowKey) { idx = i; break; }
-        }
-        var times = d.hourly.time.slice(idx, idx + 12);
-        var temps = d.hourly.temperature_2m.slice(idx, idx + 12);
-        var lo = Math.min.apply(null, temps), hi = Math.max.apply(null, temps), span = Math.max(1, hi - lo);
-        var bars = box.querySelector('.wx-hours');
-        var lbls = box.querySelector('.wx-hours-lbl');
-        var rng = box.querySelector('.wx-hourrange');
-        if (bars) {
-          bars.innerHTML = temps.map(function (v) {
-            var h = Math.round(16 + (v - lo) / span * 66);
-            return '<div class="wx-bar" style="height:' + h + 'px"><span>' + num(v) + '°</span></div>';
-          }).join('');
-        }
-        if (lbls) {
-          lbls.innerHTML = times.map(function (t) { return '<div>' + t.slice(11, 13) + '时</div>'; }).join('');
-        }
-        if (rng && times.length) {
-          rng.textContent = times[0].slice(11, 13) + ':00 起 · ' + num(lo) + '°～' + num(hi) + '°';
-        }
+      if (full) {
+        renderAlerts(box, d);
+        renderRings(box, d, c, dl, idx);
+        renderBoard(box, d, c, dl, idx);
+        renderLayerValues(box, d, c, dl);
+        renderHours(box, d, idx);
+        loadMarine(box);
       }
     }).catch(function () {
       txt(box.querySelector('.wx-desc'), '取不到数据（网络或接口）');
     });
+  }
+
+  /* ---------- rings / board / layers / hours ---------- */
+
+  function dirText(deg) {
+    if (deg == null) { return '--'; }
+    return DIRS[Math.round((((deg % 360) + 360) % 360) / 45) % 8] + '风';
+  }
+  function setRing(box, key, pct, label) {
+    var ring = box.querySelector('.wx-ring[data-ring="' + key + '"]');
+    if (!ring) { return; }
+    var arc = ring.querySelector('.wx-ring-arc');
+    if (!arc) { return; }
+    arc.style.setProperty('--p', Math.max(0, Math.min(100, Math.round(pct))));
+    txt(arc.querySelector('b'), label);
+  }
+  function cell(k, v, unit) {
+    return '<div class="wx-cell"><div class="wx-cell-k">' + k + '</div><div class="wx-cell-v">' + v +
+      (unit ? '<i>' + unit + '</i>' : '') + '</div></div>';
+  }
+  function layerVal(box, key, v) {
+    var el = box.querySelector('.wx-layer[data-overlay="' + key + '"] .wx-layer-val');
+    if (el) { el.textContent = v; }
+  }
+
+  function renderRings(box, d, c, dl, idx) {
+    var hum = zero(c.relative_humidity_2m);
+    var cloud = zero(c.cloud_cover);
+    var pop = dl.precipitation_probability_max ? zero(dl.precipitation_probability_max[0]) : 0;
+    var uv = dl.uv_index_max ? zero(dl.uv_index_max[0]) : 0;
+    setRing(box, 'hum', hum, num(hum) + '%');
+    setRing(box, 'cloud', cloud, num(cloud) + '%');
+    setRing(box, 'pop', pop, num(pop) + '%');
+    setRing(box, 'uv', uv / 11 * 100, num(uv));
+  }
+
+  function renderBoard(box, d, c, dl, idx) {
+    var host = box.querySelector('#wxBoard') || box.querySelector('.wx-board-grid');
+    if (!host) { return; }
+    var hr = d.hourly || {};
+    var dew = hr.dew_point_2m && hr.dew_point_2m[idx] != null ? hr.dew_point_2m[idx] : null;
+    var vis = hr.visibility && hr.visibility[idx] != null ? hr.visibility[idx] : null;
+    var out = '';
+    out += cell('体感温度', num(c.apparent_temperature), '°C');
+    out += cell('露点', num(dew), '°C');
+    out += cell('气压', num(c.pressure_msl), 'hPa');
+    out += cell('风向', dirText(c.wind_direction_10m), '');
+    out += cell('风速', num(c.wind_speed_10m), 'km/h');
+    out += cell('阵风', num(c.wind_gusts_10m), 'km/h');
+    out += cell('能见度', vis == null ? '--' : (vis / 1000).toFixed(1), 'km');
+    out += cell('降水量', zero(c.precipitation), 'mm');
+    if (dl.sunrise && dl.sunrise[0]) {
+      out += cell('日出', dl.sunrise[0].slice(11, 16), '');
+      out += cell('日落', dl.sunset[0].slice(11, 16), '');
+    }
+    if (c.time) { out += cell('观测时间', c.time.slice(11, 16), ''); }
+    host.innerHTML = out;
+  }
+
+  function renderLayerValues(box, d, c, dl) {
+    var pop = dl.precipitation_probability_max ? zero(dl.precipitation_probability_max[0]) : 0;
+    var gust = zero(c.wind_gusts_10m);
+    layerVal(box, 'wind', num(c.wind_speed_10m) + ' km/h · ' + beaufort(gust) + ' 级');
+    layerVal(box, 'clouds', num(c.cloud_cover) + '%');
+    layerVal(box, 'rain', num(pop) + '% · ' + zero(c.precipitation) + ' mm');
+    layerVal(box, 'temp', num(c.temperature_2m) + '°');
+  }
+
+  function renderHours(box, d, idx) {
+    var hr = d.hourly || {};
+    if (!hr.time) { return; }
+    var times = hr.time.slice(idx, idx + 12);
+    var temps = hr.temperature_2m.slice(idx, idx + 12);
+    var lo = Math.min.apply(null, temps), hi = Math.max.apply(null, temps), span = Math.max(1, hi - lo);
+    var bars = box.querySelector('.wx-hours');
+    var lbls = box.querySelector('.wx-hours-lbl');
+    var rng = box.querySelector('.wx-hourrange');
+    if (bars) {
+      bars.innerHTML = temps.map(function (v) {
+        var h = Math.round(22 + (v - lo) / span * 84);
+        return '<div class="wx-bar" style="height:' + h + 'px"><span>' + num(v) + '°</span></div>';
+      }).join('');
+    }
+    if (lbls) {
+      lbls.innerHTML = times.map(function (t) { return '<div>' + t.slice(11, 13) + '时</div>'; }).join('');
+    }
+    if (rng && times.length) {
+      rng.textContent = times[0].slice(11, 13) + ':00 起 · ' + num(lo) + '°～' + num(hi) + '°';
+    }
+  }
+
+  function loadMarine(box) {
+    var url = 'https://marine-api.open-meteo.com/v1/marine?latitude=' + cur.lat + '&longitude=' + cur.lon +
+      '&current=wave_height,wave_period,wave_direction&timezone=auto';
+    getJson(url, 1).then(function (j) {
+      var m = (j && j.current) || {};
+      if (m.wave_height == null) { layerVal(box, 'waves', '内陆 · 无浪高'); return; }
+      layerVal(box, 'waves', m.wave_height.toFixed(1) + ' m · ' + (m.wave_period ? Math.round(m.wave_period) + ' s' : ''));
+    }).catch(function () { layerVal(box, 'waves', '暂不可用'); });
   }
 
   function paintAll() {
@@ -282,7 +369,7 @@
   function initMap() {
     var frame = document.getElementById('wxWindy');
     if (!frame) { return; }
-    var tabs = document.querySelectorAll('.wx-map-tabs button');
+    var tabs = document.querySelectorAll('.wx-layer');
     Array.prototype.forEach.call(tabs, function (btn) {
       btn.addEventListener('click', function () {
         Array.prototype.forEach.call(tabs, function (b) { b.classList.remove('on'); });
