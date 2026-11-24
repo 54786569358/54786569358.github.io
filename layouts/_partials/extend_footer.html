@@ -1,26 +1,29 @@
-{{- /* ---------- custom footer additions ---------- */ -}}
-
-<div class="statline">
-  <a href="/posts/" id="random-post" class="random-post" title="带我去一篇没读过的文章">
-    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
-         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <polyline points="16 3 21 3 21 8"></polyline>
-      <line x1="4" y1="20" x2="21" y2="3"></line>
-      <polyline points="21 16 21 21 16 21"></polyline>
-      <line x1="15" y1="15" x2="21" y2="21"></line>
-      <line x1="4" y1="4" x2="9" y2="9"></line>
-    </svg>
-    <span>随便看看</span>
-  </a>
+{{- /* ---------- footer: stat line + enhancements ---------- */ -}}
+{{- $postCount := len (where site.RegularPages "Section" "posts") -}}
+{{- $moments := len (where site.RegularPages "Section" "moments") -}}
+<div class="statline" id="statline">
+  <span>{{ $postCount }} 篇文章</span>
+  <span class="statline-sep">·</span>
+  <span>{{ $moments }} 条微语</span>
+  <span class="statline-sep">·</span>
+  <a href="/archives/" title="全部文章按时间排列">归档</a>
+  <span class="statline-sep">·</span>
+  <a href="/tags/" title="按标签浏览">标签</a>
+  <span class="statline-sep">·</span>
+  <a href="/links/" title="友链">友链</a>
   <span class="statline-sep">·</span>
   <a href="/index.xml" title="RSS 订阅">RSS</a>
-  {{- if site.Params.busuanzi }}
   <span class="statline-sep">·</span>
-  <span id="site-stats" style="opacity:.45"></span>
-  {{- end }}
-  <span class="statline-sep">·</span>
-  <span style="opacity:.45">Ctrl/⌘ + K 搜索</span>
+  <a href="/posts/" id="random-post" class="random-post" title="带我去一篇没读过的文章">随便看看</a>
 </div>
+<script>
+  /* move the stat row inside <footer> so it reads as part of the footer */
+  (function () {
+    var s = document.getElementById('statline');
+    var f = document.querySelector('footer.footer') || document.querySelector('.footer');
+    if (s && f && !f.contains(s)) f.insertBefore(s, f.firstChild);
+  })();
+</script>
 
 {{- /* KaTeX: render only when the page asked for math */ -}}
 {{- if or .Params.math site.Params.math }}
@@ -45,7 +48,7 @@ document.addEventListener('DOMContentLoaded', function () {
 {{- if strings.Contains .Content "language-mermaid" }}
 <script type="module">
   import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
-  const dark = document.body.classList.contains('dark') || document.documentElement.classList.contains('dark');
+  const dark = document.documentElement.getAttribute('data-theme') === 'dark';
   mermaid.initialize({ startOnLoad: false, theme: dark ? 'dark' : 'default', securityLevel: 'loose' });
   document.querySelectorAll('pre > code.language-mermaid, pre.mermaid').forEach(function (code, i) {
     const host = code.closest('pre') || code;
@@ -63,16 +66,12 @@ document.addEventListener('DOMContentLoaded', function () {
 {{- /* Ctrl/Cmd + K -> jump to search and focus the box */ -}}
 <script>
 (function () {
-  const go = function () {
-    const onSearch = location.pathname.indexOf('/search') === 0;
-    if (!onSearch) { location.href = '/search/'; return; }
+  document.addEventListener('keydown', function (e) {
+    if (!((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K'))) return;
+    e.preventDefault();
+    if (location.pathname.indexOf('/search') !== 0) { location.href = '/search/'; return; }
     const input = document.getElementById('searchInput');
     if (input) { input.focus(); input.select(); }
-  };
-  document.addEventListener('keydown', function (e) {
-    if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
-      e.preventDefault(); go();
-    }
   });
 })();
 </script>
@@ -87,40 +86,13 @@ document.addEventListener('DOMContentLoaded', function () {
     fetch('/index.json').then(r => r.json()).then(function (items) {
       const posts = items.filter(i => /\/posts\//.test(i.permalink));
       if (!posts.length) { location.href = '/posts/'; return; }
-      const here = location.href;
-      const pool = posts.filter(p => p.permalink !== here);
-      const pick = (pool.length ? pool : posts)[Math.floor(Math.random() * (pool.length || posts.length))];
-      location.href = pick.permalink;
+      const pool = posts.filter(p => p.permalink !== location.href);
+      const list = pool.length ? pool : posts;
+      location.href = list[Math.floor(Math.random() * list.length)].permalink;
     }).catch(function () { location.href = '/posts/'; });
   });
 })();
 </script>
-
-{{- if site.Params.busuanzi }}
-<span id="busuanzi_container_site_pv" style="display:none">
-  <span id="busuanzi_value_site_pv">0</span>
-  <span id="busuanzi_value_site_uv">0</span>
-</span>
-<script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
-<script>
-(function () {
-  var tries = 0;
-  function paint() {
-    var pv = document.getElementById('busuanzi_value_site_pv');
-    var uv = document.getElementById('busuanzi_value_site_uv');
-    var box = document.getElementById('site-stats');
-    var txt = pv ? (pv.textContent || '').trim() : '';
-    if (box && txt && txt !== '0') {
-      box.textContent = '被访问 ' + txt + ' 次' + (uv && uv.textContent.trim() !== '0' ? ' · ' + uv.textContent.trim() + ' 位访客' : '');
-      box.style.opacity = '.7';
-      return;
-    }
-    if (tries++ < 30) setTimeout(paint, 500);
-  }
-  paint();
-})();
-</script>
-{{- end }}
 
 {{- /* music player shortcode */ -}}
 <script>
@@ -187,11 +159,12 @@ document.addEventListener('DOMContentLoaded', function () {
 })();
 </script>
 
-{{- /* service worker */ -}}
+{{- /* service worker: register after the page is idle so it never blocks rendering */ -}}
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function () {
-    navigator.serviceWorker.register('/sw.js').catch(function () {});
+    var reg = function () { navigator.serviceWorker.register('/sw.js').catch(function () {}); };
+    if ('requestIdleCallback' in window) { requestIdleCallback(reg, { timeout: 3000 }); } else { setTimeout(reg, 1500); }
   });
 }
 </script>

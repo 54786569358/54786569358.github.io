@@ -25,9 +25,9 @@ enableGitInfo = true
   DateFormat = "2006-01-02"
   defaultTheme = "auto"
   ShowReadingTime = true
-  ShowShareButtons = true
+  ShowShareButtons = false
   ShowPostNavLinks = true
-  ShowBreadCrumbs = true
+  ShowBreadCrumbs = false
   ShowCodeCopyButtons = true
   ShowWordCount = true
   ShowRssButtonInSectionTermList = true
@@ -37,12 +37,12 @@ enableGitInfo = true
   comments = true
   hidemeta = false
   hideSummary = false
-  showtoc = true
+  showtoc = false
   tocopen = false
   mainSections = ["posts"]
   ShowFullTextinRSS = true
   math = false
-  busuanzi = true
+  busuanzi = false
 
   [params.giscus]
     repo = "54786569358/54786569358.github.io"
@@ -58,9 +58,9 @@ enableGitInfo = true
   [params.homeInfoParams]
     Title = "你好，我是燕绛"
     Content = """
-这里是随手记的地方。
+随手记的地方。
 
-技术笔记、生活随笔、折腾过的东西，都往这儿放。
+写技术、写折腾、偶尔写点生活。
 """
 
   [[params.socialIcons]]
@@ -85,39 +85,24 @@ enableGitInfo = true
     url = "/posts/"
     weight = 10
   [[menu.main]]
-    identifier = "archives"
-    name = "归档"
-    url = "/archives/"
-    weight = 20
-  [[menu.main]]
     identifier = "moments"
     name = "微语"
     url = "/moments/"
-    weight = 25
+    weight = 20
   [[menu.main]]
     identifier = "gallery"
     name = "相册"
     url = "/gallery/"
     weight = 30
   [[menu.main]]
-    identifier = "links"
-    name = "友链"
-    url = "/links/"
-    weight = 35
-  [[menu.main]]
-    identifier = "tags"
-    name = "标签"
-    url = "/tags/"
-    weight = 40
-  [[menu.main]]
-    identifier = "search"
-    name = "搜索"
-    url = "/search/"
-    weight = 45
-  [[menu.main]]
     identifier = "about"
     name = "关于"
     url = "/about/"
+    weight = 40
+  [[menu.main]]
+    identifier = "write"
+    name = "写文章"
+    url = "/admin/"
     weight = 50
 
 [markup]

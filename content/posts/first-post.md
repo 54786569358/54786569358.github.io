@@ -1,11 +1,11 @@
----
+﻿---
 title: "第一篇文章：为什么又开始写博客"
 date: 2026-11-23T22:30:00+08:00
 draft: false
 tags: ["随笔", "折腾"]
 categories: ["日常"]
 summary: "把一个跑了三年的旧站推倒重来，这次只用 Hugo 和 GitHub。"
-showToc: true
+showToc: false
 ---
 
 ## 起因
