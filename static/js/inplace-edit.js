@@ -215,13 +215,19 @@
   }
 
   /* ---------- flow ---------- */
+  function dbg(s) {
+    try { document.title = 'EDIT ' + String(s).replace(/\s+/g, ' ').slice(0, 80); } catch (e) {}
+  }
+
   function start() {
     pill.textContent = '\u6b63\u5728\u8bfb\u53d6\u2026';
+    dbg('start token=' + (token() ? 'yes' : 'no'));
     ensureToken()
-      .then(function () { return api('content/posts?ref=' + BRANCH); })
+      .then(function () { dbg('token ok, listing'); return api('content/posts?ref=' + BRANCH); })
       .then(jsonOrThrow)
       .then(function (items) {
         if (!Array.isArray(items)) { throw new Error('\u6587\u7ae0\u5217\u8868\u683c\u5f0f\u4e0d\u5bf9'); }
+        dbg('listed ' + items.length);
         var hit = null;
         items.forEach(function (it) {
           if (!/\.md$/.test(it.name)) { return; }
@@ -230,12 +236,14 @@
         });
         if (!hit) { throw new Error('\u6ca1\u627e\u5230\u5bf9\u5e94\u7684 .md \u6587\u4ef6\uff08' + slug + '\uff09'); }
         return api(hit.path + '?ref=' + BRANCH).then(jsonOrThrow).then(function (f) {
+          dbg('file ok ' + hit.path);
           return { path: hit.path, sha: f.sha, text: b64decode(f.content) };
         });
       })
       .then(openEditor)
       .catch(function (err) {
         pill.textContent = '\u270e \u7f16\u8f91\u672c\u6587';
+        dbg('ERR ' + describe(err));
         alert('\u6253\u5f00\u5931\u8d25\uff1a' + describe(err));
       });
   }
@@ -248,6 +256,7 @@
     var btnClose = mkBtn('\u5173\u95ed', false);
     var ui = shell({ title: '\u7f16\u8f91\uff1a' + heading.trim(), buttons: [btnSave, btnClose] });
     btnClose.addEventListener('click', ui.close);
+    dbg('editor open ' + file.path);
 
     ui.note.textContent = '\u52a0\u8f7d\u7f16\u8f91\u5668\u2026';
     loadToast().then(function (toastui) {
