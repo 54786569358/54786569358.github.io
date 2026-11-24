@@ -143,9 +143,17 @@
     <div class="card" id="settingsCard" style="display:none">
       <strong>连接 GitHub</strong>
       <p class="hint" style="margin-top:.4rem">
-        需要一枚带 <code>Contents: Read and write</code> 权限的令牌。
-        <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">点这里创建</a>：
-        选仓库 <code>54786569358.github.io</code> → Repository permissions → Contents 设为 Read and write → 生成。
+        浏览器要直接改你仓库里的文件，得凭一枚 GitHub 个人令牌（相当于一次性密码，只给这个仓库的写权限）。
+      </p>
+      <ol class="hint" style="margin:.4rem 0 0 1.1rem; padding:0; line-height:1.75">
+        <li>点<a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">创建令牌</a>（Fine-grained token）</li>
+        <li>Token name 随便写，比如 <code>blog-editor</code>；Expiration 选 90 天</li>
+        <li>Repository access → <b>Only select repositories</b> → 勾 <code>54786569358.github.io</code></li>
+        <li>Permissions → Repository permissions → <b>Contents</b> 设为 <b>Read and write</b></li>
+        <li>点最下面 Generate token，复制 <code>github_pat_…</code> 开头的串贴到下面</li>
+      </ol>
+      <p class="hint" style="margin-top:.4rem">
+        令牌只存在你这台设备的浏览器里（localStorage），不上传任何服务器；不用了就点「断开」或去 GitHub 删掉。
       </p>
       <label for="token">令牌（只存在你这台设备的浏览器里）</label>
       <input type="text" id="token" placeholder="github_pat_…" autocomplete="off" spellcheck="false">
@@ -161,6 +169,7 @@
         <strong>已有文章</strong>
         <button class="ghost" id="btnRefresh" style="padding:.3rem .7rem">刷新</button>
       </div>
+      <p class="hint" style="margin:.2rem 0 .5rem">点标题把文章载入左边，改完再按「发布」就是覆盖更新。</p>
       <div class="list" id="postList"><p class="hint">连接后显示。</p></div>
     </div>
   </div>
