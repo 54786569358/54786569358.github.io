@@ -267,10 +267,10 @@ kbd { background: var(--tertiary); border: 1px solid var(--border);
 .wx-ring { text-align: center; font-size: .74em; opacity: .85; }
 .wx-ring > span { display: block; margin-top: .35rem; opacity: .75; }
 .wx-ring-arc { width: 86px; height: 86px; margin: 0 auto; border-radius: 50%; display: grid; place-items: center;
-  background: conic-gradient(var(--accent) calc(var(--p) * 1%), color-mix(in srgb, var(--border) 70%, transparent) 0);
+  background: conic-gradient(var(--c, var(--accent)) calc(var(--p) * 1%), color-mix(in srgb, var(--border) 70%, transparent) 0);
   position: relative; }
-.wx-ring-arc::after { content: ''; position: absolute; inset: 9px; border-radius: 50%; background: var(--entry); }
-.wx-ring-arc b { position: relative; font-size: 1.02rem; font-weight: 700; letter-spacing: -.01em; }
+.wx-ring-arc::after { content: ''; position: absolute; inset: 9px; border-radius: 50%; background: var(--entry); z-index: 0; }
+.wx-ring-arc b { position: relative; z-index: 2; font-size: 1.06rem; font-weight: 700; letter-spacing: -.01em; }
 
 /* realtime board */
 .wx-board { margin-top: 1.4rem; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--entry); padding: .9rem 1rem 1rem; }

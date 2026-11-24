@@ -186,12 +186,13 @@
     if (deg == null) { return '--'; }
     return DIRS[Math.round((((deg % 360) + 360) % 360) / 45) % 8] + '风';
   }
-  function setRing(box, key, pct, label) {
+  function setRing(box, key, pct, label, color) {
     var ring = box.querySelector('.wx-ring[data-ring="' + key + '"]');
     if (!ring) { return; }
     var arc = ring.querySelector('.wx-ring-arc');
     if (!arc) { return; }
     arc.style.setProperty('--p', Math.max(0, Math.min(100, Math.round(pct))));
+    if (color) { arc.style.setProperty('--c', color); }
     txt(arc.querySelector('b'), label);
   }
   function cell(k, v, unit) {
@@ -210,8 +211,8 @@
     var uv = dl.uv_index_max ? zero(dl.uv_index_max[0]) : 0;
     setRing(box, 'hum', hum, num(hum) + '%');
     setRing(box, 'cloud', cloud, num(cloud) + '%');
-    setRing(box, 'pop', pop, num(pop) + '%');
-    setRing(box, 'uv', uv / 11 * 100, num(uv));
+    setRing(box, 'pop', pop, num(pop) + '%', pop >= 80 ? '#ef4444' : (pop >= 50 ? '#f59e0b' : ''));
+    setRing(box, 'uv', uv / 11 * 100, num(uv), uv >= 8 ? '#ef4444' : (uv >= 6 ? '#f59e0b' : ''));
   }
 
   function renderBoard(box, d, c, dl, idx) {
