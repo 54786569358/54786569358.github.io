@@ -21,7 +21,7 @@ enableGitInfo = true
   env = "production"
   description = "记录、思考、折腾"
   keywords = ["博客", "随笔", "技术"]
-  author = "YanJiang"
+  author = "燕绛"
   DateFormat = "2006-01-02"
   defaultTheme = "auto"
   ShowReadingTime = true
@@ -47,7 +47,7 @@ enableGitInfo = true
     disableFingerprinting = false
 
   [params.homeInfoParams]
-    Title = "你好，我是 YanJiang"
+    Title = "你好，我是燕绛"
     Content = """
 这里是随手记的地方。
 
