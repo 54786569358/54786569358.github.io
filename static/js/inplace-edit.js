@@ -291,6 +291,16 @@
 
       btnSave.addEventListener('click', function () {
         var body = editor.getMarkdown().replace(/\s+$/, '') + '\n';
+        if (!parts.front && /^\s*(---|\*\*\*|\+\+\+)/.test(body)) {
+          alert('\u6b63\u6587\u91cc\u770b\u8d77\u6765\u8fd8\u5305\u542b\u6587\u4ef6\u5934\uff08front matter\uff09\uff0c\u4e3a\u514d\u5199\u574f\u6587\u4ef6\uff0c\u5df2\u62d2\u7edd\u4fdd\u5b58\u3002');
+          return;
+        }
+        var before = (parts.body || '').replace(/\s+/g, '').length;
+        var after = body.replace(/\s+/g, '').length;
+        if (before > 120 && after < before * 0.75) {
+          var pct = Math.round((1 - after / before) * 100);
+          if (!confirm('\u6b63\u6587\u6bd4\u539f\u6765\u77ed\u4e86 ' + pct + '%\uff08' + before + ' \u2192 ' + after + ' \u5b57\uff09\uff0c\u786e\u5b9a\u8981\u4fdd\u5b58\u5417\uff1f')) { return; }
+        }
         btnSave.disabled = true;
         ui.note.textContent = '\u4fdd\u5b58\u4e2d\u2026';
         api(file.path, {
@@ -302,12 +312,17 @@
             sha: file.sha,
             branch: BRANCH
           })
-        }).then(jsonOrThrow).then(function () {
+        }).then(jsonOrThrow).then(function (res) {
+          if (res && res.content && res.content.sha) { file.sha = res.content.sha; }
           ui.note.textContent = '\u5df2\u4fdd\u5b58\uff0c\u7ea6 40 \u79d2\u540e\u751f\u6548\uff08Ctrl+F5 \u5237\u65b0\u770b\uff09';
           btnSave.textContent = '\u5df2\u4fdd\u5b58';
         }).catch(function (err) {
           btnSave.disabled = false;
-          ui.note.textContent = '\u4fdd\u5b58\u5931\u8d25\uff1a' + describe(err);
+          if (err && err.status === 409) {
+            ui.note.textContent = '\u4fdd\u5b58\u5931\u8d25\uff1a\u8fd9\u4e2a\u6587\u4ef6\u5728\u522b\u5904\u88ab\u6539\u8fc7\u4e86\uff0c\u8bf7\u5173\u6389\u7f16\u8f91\u5668\u3001Ctrl+F5 \u5237\u65b0\u9875\u9762\u540e\u91cd\u65b0\u7f16\u8f91\u3002';
+          } else {
+            ui.note.textContent = '\u4fdd\u5b58\u5931\u8d25\uff1a' + describe(err);
+          }
         });
       });
     }).catch(function () {
