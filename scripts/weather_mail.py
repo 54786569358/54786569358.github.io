@@ -25,8 +25,9 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.utils import formataddr, formatdate
 
-CITY = "石狮市"
-LAT, LON = 24.7217, 118.6472
+CITY = os.environ.get("CITY_NAME", "石狮市")
+LAT = float(os.environ.get("CITY_LAT", "24.7217"))
+LON = float(os.environ.get("CITY_LON", "118.6472"))
 TZ = timezone(timedelta(hours=8))
 
 WMO = {
@@ -190,13 +191,13 @@ def build_html(d, now, ty=None):
         warn = ""
         if ty["dist"] <= 1000:
             warn = ("<div style='margin-top:8px;padding:8px 12px;background:#fee2e2;border-radius:6px;"
-                    "color:#b91c1c;font-size:13px'>台风中心距石狮约 {:.0f} km，注意当地气象台预警信号。</div>"
+                    "color:#b91c1c;font-size:13px'>台风中心距" + CITY + "约 {:.0f} km，注意当地气象台预警信号。</div>"
                     ).format(ty["dist"])
         ty_html = (
             "<div style='margin:14px 0 0;padding:12px 14px;background:#fff5f5;border:1px solid #fecaca;"
             "border-radius:8px;color:#7f1d1d;font-size:13px;line-height:1.7'>"
             "<b>台风动向</b>　{n} {e}（{num} 号）· {lv}<br>"
-            "中心 {lat:.1f}°N {lon:.1f}°E，距石狮约 <b>{d:.0f} km</b>；气压 {p} hPa，最大风速 {w} m/s（{b} 级）<br>"
+            "中心 {lat:.1f}°N {lon:.1f}°E，距" + CITY + "约 <b>{d:.0f} km</b>；气压 {p} hPa，最大风速 {w} m/s（{b} 级）<br>"
             "移动 {dr} {sp} km/h　<a href='https://typhoon.nmc.cn/web.html' style='color:#b91c1c'>看路径图</a>"
             "{warn}</div>"
         ).format(n=ty["name"], e=ty["name_en"], num=ty["num"], lv=ty["level"],
@@ -274,7 +275,7 @@ def build_text(d, now, ty=None):
     if tips:
         lines += [""] + tips
     if ty:
-        lines += ["", "台风 {} {}（{} 号）{}，中心 {:.1f}°N {:.1f}°E，距石狮约 {:.0f} km，气压 {} hPa，风速 {} m/s".format(
+        lines += ["", ("台风 {} {}（{} 号）{}，中心 {:.1f}°N {:.1f}°E，距" + CITY + "约 {:.0f} km，气压 {} hPa，风速 {} m/s").format(
             ty["name"], ty["name_en"], ty["num"], ty["level"],
             ty["lat"], ty["lon"], ty["dist"], ty["pressure"], ty["wind"])]
         if ty["dist"] <= 1000:
@@ -309,7 +310,7 @@ def main():
 
     msg = MIMEMultipart("alternative")
     msg["Subject"] = Header(subject, "utf-8")
-    msg["From"] = formataddr((str(Header("石狮天气", "utf-8")), user))
+    msg["From"] = formataddr((str(Header(CITY + "天气", "utf-8")), user))
     msg["To"] = to
     msg["Date"] = formatdate(localtime=True)
     msg.attach(MIMEText(text, "plain", "utf-8"))

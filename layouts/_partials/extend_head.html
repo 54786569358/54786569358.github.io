@@ -291,10 +291,34 @@ kbd { background: var(--tertiary); border: 1px solid var(--border);
               color: #ef4444; background: color-mix(in srgb, #ef4444 12%, transparent);
               border: 1px solid color-mix(in srgb, #ef4444 35%, transparent); }
 .wx-ty a { color: var(--accent); }
+
+.wx-tools { display: inline-flex; gap: .35rem; flex-wrap: wrap; }
+.wx-btn { font: inherit; font-size: .74em; padding: .28rem .7rem; border-radius: 999px; cursor: pointer;
+          border: 1px solid var(--border); background: transparent; color: inherit; }
+.wx-btn:hover { border-color: var(--accent); color: var(--accent); }
+.wx-picker { margin: .2rem 0 .8rem; padding: .7rem .8rem; border-radius: var(--radius-sm);
+             border: 1px dashed color-mix(in srgb, var(--accent) 45%, transparent);
+             background: color-mix(in srgb, var(--accent) 6%, transparent); }
+.wx-picker-row { display: flex; gap: .45rem; flex-wrap: wrap; align-items: center; }
+.wx-picker-row input { flex: 1 1 12rem; min-width: 0; font: inherit; font-size: .86em; padding: .42rem .7rem;
+                       border-radius: 9px; border: 1px solid var(--border); background: var(--entry); color: inherit; }
+.wx-picker-row input:focus { outline: none; border-color: var(--accent); }
+.wx-picker-row button { font: inherit; font-size: .8em; padding: .42rem .9rem; border-radius: 9px; cursor: pointer;
+                        border: 1px solid var(--accent); background: var(--accent); color: #fff; }
+.wx-picker-row .wx-btn { background: transparent; color: inherit; border-color: var(--border); }
+.wx-picker-list { display: flex; gap: .4rem; flex-wrap: wrap; margin-top: .55rem; }
+.wx-pick-item { font: inherit; font-size: .78em; padding: .3rem .7rem; border-radius: 999px; cursor: pointer;
+                border: 1px solid var(--border); background: var(--entry); color: inherit; }
+.wx-pick-item:hover { border-color: var(--accent); color: var(--accent); }
+.wx-pick-tip { font-size: .78em; opacity: .6; }
+.wx-loc-status { margin-top: .5rem; font-size: .74em; opacity: .62; }
+.wx-loc-status:empty { display: none; }
+
 @media (max-width: 640px) {
   .wx-full .wx-days { grid-template-columns: repeat(4, minmax(0,1fr)); }
   .wx-hours, .wx-hours-lbl { grid-template-columns: repeat(6, minmax(0,1fr)); }
   .wx-hours > :nth-child(n+7) { display: none; }
+  .wx-map iframe { height: 320px; }
 }
 
 @media (display-mode: standalone) { .top-link { display: none; } }

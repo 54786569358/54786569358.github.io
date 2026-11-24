@@ -1,0 +1,405 @@
+{{- /* weather JS: location-aware (auto IP geo / manual pick / precise GPS), Open-Meteo + NMC typhoon + Windy map */ -}}
+<script>
+(function () {
+  'use strict';
+
+  var LS_LOC = 'wx_loc_v2';
+  var FALLBACK = { lat: 24.7217, lon: 118.6472, name: '石狮市' };
+
+  var CODE_TEXT = { 0: '晴', 1: '大致晴朗', 2: '多云', 3: '阴', 45: '雾', 48: '雾凇', 51: '小毛毛雨', 53: '毛毛雨', 55: '大毛毛雨', 56: '冻毛毛雨', 57: '强冻毛毛雨', 61: '小雨', 63: '中雨', 65: '大雨', 66: '冻雨', 67: '强冻雨', 71: '小雪', 73: '中雪', 75: '大雪', 77: '雪粒', 80: '阵雨', 81: '强阵雨', 82: '暴雨', 85: '阵雪', 86: '强阵雪', 95: '雷阵雨', 96: '雷阵雨伴冰雹', 99: '强雷暴伴冰雹' };
+  var CODE_ICO = { 0: '☀️', 1: '🌤️', 2: '⛅', 3: '☁️', 45: '🌫️', 48: '🌫️', 51: '🌦️', 53: '🌦️', 55: '🌦️', 56: '🌧️', 57: '🌧️', 61: '🌧️', 63: '🌧️', 65: '🌧️', 66: '🌧️', 67: '🌧️', 71: '🌨️', 73: '🌨️', 75: '❄️', 77: '❄️', 80: '🌦️', 81: '🌧️', 82: '⛈️', 85: '🌨️', 86: '❄️', 95: '⛈️', 96: '⛈️', 99: '⛈️' };
+  var WEEK = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+  var BFT = [1, 6, 12, 20, 29, 39, 50, 62, 75, 89, 103, 118];
+  var RAIN = [51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82, 95, 96, 99];
+  var TY_LEVEL = { TD: '热带低压', TS: '热带风暴', STS: '强热带风暴', TY: '台风', STY: '强台风', SuperTY: '超强台风' };
+  var DIRS = ['北', '东北', '东', '东南', '南', '西南', '西', '西北'];
+  var TY_LIST = 'https://typhoon.nmc.cn/weatherservice/typhoon/jsons/list_default';
+  var TY_VIEW = 'https://typhoon.nmc.cn/weatherservice/typhoon/jsons/view_';
+
+  var cur = { lat: FALLBACK.lat, lon: FALLBACK.lon, name: FALLBACK.name, src: 'default' };
+  var boxes = [];
+  var timer = null;
+
+  function num(v) { return v == null ? '--' : Math.round(v); }
+  function zero(v) { return v == null ? 0 : v; }
+  function text(c) { return CODE_TEXT[c] || '天气'; }
+  function ico(c) { return CODE_ICO[c] || '🌡️'; }
+  function rad(d) { return d * Math.PI / 180; }
+  function beaufort(kmh) { var n = 0; for (var i = 0; i < BFT.length; i++) { if (kmh >= BFT[i]) { n = i + 1; } } return n; }
+  function distKm(lat1, lon1, lat2, lon2) {
+    var R = 6371, dLat = rad(lat2 - lat1), dLon = rad(lon2 - lon1);
+    var a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(rad(lat1)) * Math.cos(rad(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+  function bearing(lat1, lon1, lat2, lon2) {
+    var y = Math.sin(rad(lon2 - lon1)) * Math.cos(rad(lat2));
+    var x = Math.cos(rad(lat1)) * Math.sin(rad(lat2)) - Math.sin(rad(lat1)) * Math.cos(rad(lat2)) * Math.cos(rad(lon2 - lon1));
+    return DIRS[Math.round(((Math.atan2(y, x) * 180 / Math.PI) + 360) % 360 / 45) % 8];
+  }
+  function grabJson(t) {
+    var a = t.indexOf('{'), b = t.lastIndexOf('}');
+    if (a < 0 || b < 0) { throw new Error('bad jsonp'); }
+    return JSON.parse(t.slice(a, b + 1));
+  }
+  function txt(el, v) { if (el) { el.textContent = v; } }
+
+  /* ---------- location ---------- */
+
+  function loadStored() {
+    try {
+      var o = JSON.parse(localStorage.getItem(LS_LOC) || 'null');
+      if (o && typeof o.lat === 'number' && typeof o.lon === 'number') { return o; }
+    } catch (e) { /* ignore */ }
+    return null;
+  }
+  function saveStored(loc) {
+    try { localStorage.setItem(LS_LOC, JSON.stringify(loc)); } catch (e) { /* ignore */ }
+  }
+  function ipLocate() {
+    var tries = [
+      { url: 'https://ipwho.is/', pick: function (j) {
+        if (j && j.success !== false && j.latitude) {
+          return { lat: j.latitude, lon: j.longitude, name: j.city || j.region || j.country || '当前位置' };
+        }
+        return null;
+      } },
+      { url: 'https://get.geojs.io/v1/ip/geo.json', pick: function (j) {
+        if (j && j.latitude) {
+          return { lat: parseFloat(j.latitude), lon: parseFloat(j.longitude), name: j.city || j.region || j.country || '当前位置' };
+        }
+        return null;
+      } }
+    ];
+    function step(i) {
+      if (i >= tries.length) { return Promise.reject(new Error('geo failed')); }
+      return fetch(tries[i].url, { cache: 'no-store' })
+        .then(function (r) { return r.json(); })
+        .then(function (j) { var o = tries[i].pick(j); if (!o) { throw new Error('empty'); } return o; })
+        .catch(function () { return step(i + 1); });
+    }
+    return step(0);
+  }
+  function reverseName(lat, lon) {
+    return fetch('https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=10&accept-language=zh-CN&lat=' + lat + '&lon=' + lon, { cache: 'no-store' })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        var a = j.address || {};
+        return a.city || a.town || a.county || a.state || j.name || '当前位置';
+      })
+      .catch(function () { return '当前位置'; });
+  }
+
+  function applyLoc(loc, opts) {
+    opts = opts || {};
+    cur = { lat: loc.lat, lon: loc.lon, name: loc.name || '当前位置', src: opts.src || 'manual' };
+    boxes.forEach(function (b) {
+      b.dataset.lat = cur.lat;
+      b.dataset.lon = cur.lon;
+      b.dataset.city = cur.name;
+      txt(b.querySelector('.wx-city-name'), cur.name);
+    });
+    if (opts.persist !== false) { saveStored({ lat: cur.lat, lon: cur.lon, name: cur.name }); }
+    paintAll();
+    relocateMap();
+    loadTyphoon();
+    setStatus(opts.src === 'ip' ? '已按当前网络位置自动定位' : (opts.src === 'gps' ? '已使用精确定位' : '已切换城市'));
+  }
+
+  function setStatus(msg) {
+    var s = document.getElementById('wxLocStatus');
+    if (s) { s.textContent = msg || ''; }
+  }
+
+  /* ---------- forecast ---------- */
+
+  function getJson(url, tries) {
+    tries = tries == null ? 2 : tries;
+    return fetch(url, { cache: 'no-store' }).then(function (r) {
+      if (!r.ok) { throw new Error('http ' + r.status); }
+      return r.json();
+    }).catch(function (e) {
+      if (tries <= 0) { throw e; }
+      return new Promise(function (res) { setTimeout(res, 900); }).then(function () { return getJson(url, tries - 1); });
+    });
+  }
+
+  function paint(box) {
+    var full = box.classList.contains('wx-full');
+    var lat = parseFloat(box.dataset.lat || cur.lat);
+    var lon = parseFloat(box.dataset.lon || cur.lon);
+    var url = 'https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lon +
+      '&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,wind_gusts_10m,precipitation' +
+      '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,sunrise,sunset,uv_index_max,wind_gusts_10m_max' +
+      '&hourly=temperature_2m,precipitation_probability&timezone=auto&forecast_days=7';
+    getJson(url).then(function (d) {
+      var c = d.current || {}, dl = d.daily || {};
+      txt(box.querySelector('.wx-ico'), ico(c.weather_code));
+      txt(box.querySelector('.wx-temp'), num(c.temperature_2m) + '°');
+      txt(box.querySelector('.wx-desc'), text(c.weather_code));
+
+      var meta = box.querySelector('.wx-meta');
+      if (meta) {
+        var h = '<span>体感 ' + num(c.apparent_temperature) + '°</span><span>湿度 ' + num(c.relative_humidity_2m) + '%</span>' +
+          '<span>风 ' + num(c.wind_speed_10m) + ' km/h</span><span>降水 ' + zero(c.precipitation) + ' mm</span>';
+        if (full && dl.sunrise) {
+          h += '<span>日出 ' + dl.sunrise[0].slice(11, 16) + '</span><span>日落 ' + dl.sunset[0].slice(11, 16) + '</span>';
+        }
+        meta.innerHTML = h;
+      }
+
+      var days = box.querySelector('.wx-days');
+      if (days && dl.time) {
+        var n = full ? 7 : 3;
+        days.innerHTML = dl.time.slice(0, n).map(function (t, i) {
+          var dt = new Date(t + 'T12:00:00');
+          var nm = i === 0 ? '今天' : WEEK[dt.getDay()];
+          return '<div class="wx-day"><div class="wx-day-name">' + nm + '</div><div class="wx-day-ico">' + ico(dl.weather_code[i]) + '</div>' +
+            '<div class="wx-day-t">' + num(dl.temperature_2m_max[i]) + '° / ' + num(dl.temperature_2m_min[i]) + '°</div>' +
+            '<div class="wx-day-p">降水 ' + zero(dl.precipitation_probability_max[i]) + '%</div></div>';
+        }).join('');
+      }
+
+      if (full) { renderAlerts(box, d); }
+
+      if (full && d.hourly && d.hourly.time) {
+        var off = (typeof d.utc_offset_seconds === 'number') ? d.utc_offset_seconds : 28800;
+        var nowKey = new Date(Date.now() + off * 1000).toISOString().slice(0, 13).replace('T', ' ');
+        var idx = 0;
+        for (var i = 0; i < d.hourly.time.length; i++) {
+          if (d.hourly.time[i].replace('T', ' ').slice(0, 13) >= nowKey) { idx = i; break; }
+        }
+        var times = d.hourly.time.slice(idx, idx + 12);
+        var temps = d.hourly.temperature_2m.slice(idx, idx + 12);
+        var lo = Math.min.apply(null, temps), hi = Math.max.apply(null, temps), span = Math.max(1, hi - lo);
+        var bars = box.querySelector('.wx-hours');
+        var lbls = box.querySelector('.wx-hours-lbl');
+        if (bars) {
+          bars.innerHTML = temps.map(function (v) {
+            var h = Math.round(18 + (v - lo) / span * 74);
+            return '<div class="wx-bar" style="height:' + h + 'px"><span>' + num(v) + '°</span></div>';
+          }).join('');
+        }
+        if (lbls) {
+          lbls.innerHTML = times.map(function (t) { return '<div>' + t.slice(11, 13) + '时</div>'; }).join('');
+        }
+      }
+    }).catch(function () {
+      txt(box.querySelector('.wx-desc'), '取不到数据（网络或接口）');
+    });
+  }
+
+  function paintAll() {
+    boxes.forEach(paint);
+    if (timer) { clearInterval(timer); }
+    timer = setInterval(function () { boxes.forEach(paint); }, 600000);
+  }
+
+  /* ---------- alerts ---------- */
+
+  function renderAlerts(box, d) {
+    var host = box.querySelector('.wx-alerts');
+    if (!host) { return; }
+    var c = d.current || {}, dl = d.daily || {};
+    var out = [];
+    var gust = zero(c.wind_gusts_10m), wind = zero(c.wind_speed_10m);
+    var g = beaufort(gust), w = beaufort(wind);
+    if (g >= 8) { out.push(chip('danger', '大风警报 · 阵风 ' + num(gust) + ' km/h（' + g + ' 级）')); }
+    else if (g >= 6) { out.push(chip('warn', '风力较大 · 阵风 ' + num(gust) + ' km/h（' + g + ' 级）')); }
+    else { out.push(chip('info', '风力平稳 · ' + num(wind) + ' km/h（' + w + ' 级）')); }
+
+    var pop = dl.precipitation_probability_max ? zero(dl.precipitation_probability_max[0]) : 0;
+    if (pop >= 80 || RAIN.indexOf(c.weather_code) >= 0) { out.push(chip('warn', '有降雨 · 概率 ' + pop + '%')); }
+    else if (pop >= 40) { out.push(chip('info', '可能下雨 · 概率 ' + pop + '%')); }
+
+    var tmax = dl.temperature_2m_max ? dl.temperature_2m_max[0] : null;
+    var tmin = dl.temperature_2m_min ? dl.temperature_2m_min[0] : null;
+    var uv = dl.uv_index_max ? zero(dl.uv_index_max[0]) : 0;
+    if (tmax != null && tmax >= 35) { out.push(chip('danger', '高温 · 最高 ' + num(tmax) + '°')); }
+    else if (tmax != null && tmax >= 32) { out.push(chip('warn', '偏热 · 最高 ' + num(tmax) + '°')); }
+    if (tmin != null && tmin <= 8) { out.push(chip('warn', '低温 · 最低 ' + num(tmin) + '°')); }
+    if (uv >= 8) { out.push(chip('warn', '紫外线很强 · UV ' + num(uv))); }
+    host.innerHTML = out.join('');
+  }
+  function chip(kind, msg) { return '<span class="wx-alert ' + kind + '">' + msg + '</span>'; }
+
+  /* ---------- typhoon ---------- */
+
+  function loadTyphoon() {
+    var body = document.querySelector('#wxTyphoon .wx-ty-body');
+    if (!body) { return; }
+    fetch(TY_LIST, { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) {
+      var list = (grabJson(t).typhoonList || []).filter(function (x) { return x && x[7] !== 'stop'; });
+      if (!list.length) {
+        body.innerHTML = '<span class="wx-ty-none">西北太平洋和南海当前无活跃热带气旋。</span> <a href="https://typhoon.nmc.cn/web.html" target="_blank" rel="noopener">台风网 ↗</a>';
+        return null;
+      }
+      return fetch(TY_VIEW + list[0][0], { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t2) {
+        var root = grabJson(t2).typhoon || [];
+        var pts = root[8] || [];
+        if (!pts.length) {
+          body.innerHTML = '<span class="wx-ty-none">有活跃台风，暂无路径数据。</span>';
+          return;
+        }
+        var p = pts[pts.length - 1];
+        var ptId = p[0], tm = p[1], lon = p[4], lat = p[5], pres = p[6], wind = p[7], dir = p[8], spd = p[9];
+        var km = distKm(cur.lat, cur.lon, lat, lon);
+        var brg = bearing(cur.lat, cur.lon, lat, lon);
+        var lvl = TY_LEVEL[p[3]] || p[3] || '未知';
+        var html = '<div><span class="wx-ty-name">' + (root[2] || '') + ' ' + (root[1] || '') + '（' + (root[3] || '') + ' 号）</span> · ' + lvl + '</div>' +
+          '<div class="wx-ty-row">中心位置 ' + lat.toFixed(1) + '°N ' + lon.toFixed(1) + '°E，距' + cur.name + '约 <b>' + num(km) + ' km</b>（' + brg + '方向）</div>' +
+          '<div class="wx-ty-row">中心气压 ' + pres + ' hPa · 最大风速 ' + wind + ' m/s（' + beaufort(wind * 3.6) + ' 级） · 移动 ' + (dir || '') + ' ' + (spd || '') + ' km/h</div>' +
+          '<div class="wx-ty-row">更新 ' + fmtTs(tm) + '（当地时间）</div>';
+        if (km <= 800) {
+          html += '<div class="wx-ty-warn">台风距' + cur.name + '约 ' + num(km) + ' km，已进入需要关注的范围，注意当地气象台发布的预警信号。</div>';
+        }
+        html += '<div class="wx-ty-row"><a href="https://typhoon.nmc.cn/web.html" target="_blank" rel="noopener">看路径图 ↗</a></div>';
+        body.innerHTML = html;
+      });
+    }).catch(function () {
+      body.innerHTML = '<span class="wx-ty-none">台风数据取不到（接口访问失败）。</span> <a href="https://typhoon.nmc.cn/web.html" target="_blank" rel="noopener">直接打开台风网 ↗</a>';
+    });
+  }
+  function fmtTs(s) {
+    if (!s || s.length < 12) { return ''; }
+    return s.slice(0, 4) + '-' + s.slice(4, 6) + '-' + s.slice(6, 8) + ' ' + s.slice(8, 10) + ':' + s.slice(10, 12);
+  }
+
+  /* ---------- windy map ---------- */
+
+  var overlay = 'wind', product = 'ecmwf';
+
+  function mapUrl(ov, pr) {
+    var lat = cur.lat.toFixed(2), lon = cur.lon.toFixed(2);
+    return 'https://embed.windy.com/embed2.html?lat=' + lat + '&lon=' + lon +
+      '&detailLat=' + lat + '&detailLon=' + lon + '&width=900&height=430&zoom=6&level=surface&overlay=' + ov +
+      '&product=' + pr + '&menu=&message=&marker=&calendar=now&pressure=&type=map&location=coordinates' +
+      '&detail=&metricWind=default&metricTemp=default&radarRange=-1&lang=zh';
+  }
+  function initMap() {
+    var frame = document.getElementById('wxWindy');
+    if (!frame) { return; }
+    var tabs = document.querySelectorAll('.wx-map-tabs button');
+    Array.prototype.forEach.call(tabs, function (btn) {
+      btn.addEventListener('click', function () {
+        Array.prototype.forEach.call(tabs, function (b) { b.classList.remove('on'); });
+        btn.classList.add('on');
+        overlay = btn.dataset.overlay;
+        product = btn.dataset.product;
+        frame.src = mapUrl(overlay, product);
+      });
+    });
+    frame.src = mapUrl(overlay, product);
+  }
+  function relocateMap() {
+    var frame = document.getElementById('wxWindy');
+    if (frame) { frame.src = mapUrl(overlay, product); }
+  }
+
+  /* ---------- city picker ---------- */
+
+  function geocode(name) {
+    var u = 'https://geocoding-api.open-meteo.com/v1/search?count=6&language=zh&format=json&name=' + encodeURIComponent(name);
+    return fetch(u, { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (j) {
+      return (j.results || []).map(function (x) {
+        var label = x.name + (x.admin1 ? ' · ' + x.admin1 : '') + (x.country ? '，' + x.country : '');
+        return { lat: x.latitude, lon: x.longitude, name: x.name, label: label };
+      });
+    });
+  }
+
+  function wirePicker() {
+    var picker = document.getElementById('wxPicker');
+    var input = document.getElementById('wxCityInput');
+    var go = document.getElementById('wxCityGo');
+    var toggle = document.getElementById('wxSwitchBtn');
+    var auto = document.getElementById('wxAutoBtn');
+    var gps = document.getElementById('wxGpsBtn');
+    var list = document.getElementById('wxPickerList');
+    if (!picker) { return; }
+
+    if (toggle) {
+      toggle.addEventListener('click', function () {
+        picker.hidden = !picker.hidden;
+        if (!picker.hidden && input) { input.focus(); }
+      });
+    }
+    if (/[?&]pick=1/.test(location.search)) {
+      picker.hidden = false;
+      if (input) { input.focus(); }
+    }
+    if (auto) {
+      auto.addEventListener('click', function () {
+        setStatus('正在按网络位置定位…');
+        ipLocate().then(function (o) { applyLoc(o, { src: 'ip' }); })
+          .catch(function () { setStatus('定位失败，已保留 ' + cur.name); });
+      });
+    }
+    if (gps) {
+      gps.addEventListener('click', function () {
+        if (!navigator.geolocation) { setStatus('浏览器不支持精确定位'); return; }
+        setStatus('正在获取精确定位…');
+        navigator.geolocation.getCurrentPosition(function (p) {
+          reverseName(p.coords.latitude, p.coords.longitude).then(function (nm) {
+            applyLoc({ lat: p.coords.latitude, lon: p.coords.longitude, name: nm }, { src: 'gps' });
+          });
+        }, function () {
+          setStatus('精确定位被拒绝，可改用「自动定位」');
+        }, { timeout: 10000, maximumAge: 600000 });
+      });
+    }
+
+    function search() {
+      var q = (input && input.value || '').trim();
+      if (!q || !list) { return; }
+      list.innerHTML = '<span class="wx-pick-tip">查询中…</span>';
+      geocode(q).then(function (rs) {
+        if (!rs.length) { list.innerHTML = '<span class="wx-pick-tip">没找到这个地名，换个写法试试</span>'; return; }
+        list.innerHTML = rs.map(function (r, i) {
+          return '<button type="button" class="wx-pick-item" data-i="' + i + '">' + r.label + '</button>';
+        }).join('');
+        Array.prototype.forEach.call(list.querySelectorAll('.wx-pick-item'), function (btn) {
+          btn.addEventListener('click', function () {
+            var r = rs[parseInt(btn.dataset.i, 10)];
+            picker.hidden = true;
+            if (list) { list.innerHTML = ''; }
+            applyLoc({ lat: r.lat, lon: r.lon, name: r.name }, { src: 'manual' });
+          });
+        });
+      }).catch(function () {
+        if (list) { list.innerHTML = '<span class="wx-pick-tip">查询失败，检查网络</span>'; }
+      });
+    }
+    if (go) { go.addEventListener('click', search); }
+    if (input) {
+      input.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') { e.preventDefault(); search(); }
+      });
+    }
+  }
+
+  /* ---------- boot ---------- */
+
+  function boot() {
+    boxes = Array.prototype.slice.call(document.querySelectorAll('.wx'));
+    initMap();
+    wirePicker();
+    loadTyphoon();
+
+    var stored = loadStored();
+    if (stored) {
+      applyLoc(stored, { persist: false, src: 'saved' });
+      return;
+    }
+    if (!boxes.length) { return; }
+    setStatus('定位中…');
+    ipLocate().then(function (o) { applyLoc(o, { src: 'ip' }); })
+      .catch(function () { applyLoc(FALLBACK, { persist: false, src: 'default' }); });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
+  }
+})();
+</script>
